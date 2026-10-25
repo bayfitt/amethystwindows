@@ -58,21 +58,32 @@ namespace AmethystWindows.DesktopWindowsManager
         {
             void WinEventHookAll(User32.HWINEVENTHOOK hWinEventHook, uint winEvent, HWND hwnd, int idObject, int idChild, uint idEventThread, uint dwmsEventTime)
             {
-                if (hwnd == HWND.NULL || idObject != User32.ObjectIdentifiers.OBJID_WINDOW || idChild != 0)
+                if (hwnd == HWND.NULL)
                 {
                     return;
                 }
 
-                // A destroyed HWND may no longer pass IsRuntimeValuable, so remove it
-                // before applying the normal live-window filter below.
+                // Destroy notifications can arrive after the HWND has stopped identifying
+                // a normal window object, so process them before checking idObject/idChild.
                 if (winEvent == User32.EventConstants.EVENT_OBJECT_DESTROY)
                 {
-                    DesktopWindow destroyed = DesktopWindowsManager.FindWindow(hwnd);
-                    if (destroyed != null)
-                    {
-                        DesktopWindowsManager.mainWindowViewModel.LastChangedDesktopMonitor = destroyed.GetDesktopMonitor();
-                        DesktopWindowsManager.RemoveWindow(destroyed);
-                    }
+                    RemoveManagedWindow(hwnd, "destroyed");
+                    return;
+                }
+
+                if (idObject != User32.ObjectIdentifiers.OBJID_WINDOW || idChild != 0)
+                {
+                    return;
+                }
+
+                // Close and minimize events can make IsRuntimeValuable false before the
+                // normal event filter runs. Remove these HWNDs first so the remaining
+                // Tall pane is immediately laid out across the full work area.
+                if (winEvent == User32.EventConstants.EVENT_SYSTEM_MINIMIZESTART ||
+                    winEvent == User32.EventConstants.EVENT_OBJECT_HIDE ||
+                    winEvent == User32.EventConstants.EVENT_OBJECT_IME_HIDE)
+                {
+                    RemoveManagedWindow(hwnd, "hidden or minimized");
                     return;
                 }
 
@@ -106,17 +117,6 @@ namespace AmethystWindows.DesktopWindowsManager
                                 bool isForeground = hwnd == User32.GetForegroundWindow();
                                 if (isForeground) DesktopWindowsManager.ActivateWindow(desktopWindow);
                                 else DesktopWindowsManager.AddWindow(desktopWindow, false);
-                            }
-                            break;
-                        case User32.EventConstants.EVENT_SYSTEM_MINIMIZESTART:
-                        case User32.EventConstants.EVENT_OBJECT_HIDE:
-                        case User32.EventConstants.EVENT_OBJECT_IME_HIDE:
-                            Debug.WriteLine($"window minimized/hide");
-                            DesktopWindow removed = DesktopWindowsManager.FindWindow(hwnd);
-                            if (removed != null)
-                            {
-                                DesktopWindowsManager.mainWindowViewModel.LastChangedDesktopMonitor = removed.GetDesktopMonitor();
-                                DesktopWindowsManager.RemoveWindow(removed);
                             }
                             break;
                         case User32.EventConstants.EVENT_SYSTEM_MOVESIZEEND:
@@ -154,6 +154,19 @@ namespace AmethystWindows.DesktopWindowsManager
             GCHandle gchCreate = GCHandle.Alloc(winEventHookAll);
 
             User32.HWINEVENTHOOK hookAll = User32.SetWinEventHook(User32.EventConstants.EVENT_MIN, User32.EventConstants.EVENT_MAX, HINSTANCE.NULL, winEventHookAll, 0, 0, User32.WINEVENT.WINEVENT_OUTOFCONTEXT | User32.WINEVENT.WINEVENT_SKIPOWNPROCESS);
+        }
+
+        private void RemoveManagedWindow(HWND hwnd, string reason)
+        {
+            DesktopWindow removed = DesktopWindowsManager.FindWindow(hwnd);
+            if (removed == null)
+            {
+                return;
+            }
+
+            Debug.WriteLine($"window {reason}");
+            DesktopWindowsManager.mainWindowViewModel.LastChangedDesktopMonitor = removed.GetDesktopMonitor();
+            DesktopWindowsManager.RemoveWindow(removed);
         }
 
         private User32.HotKeyModifiers convertModifiers(ViewModelHotkey viewModelHotkey)

@@ -12,6 +12,7 @@ using System.Diagnostics;
 using System.Windows.Interop;
 using System.Threading.Tasks;
 using System.Runtime.CompilerServices;
+using System.Windows.Threading;
 
 [assembly: InternalsVisibleTo("AmethystWindowsTests")]
 namespace AmethystWindows.DesktopWindowsManager
@@ -27,6 +28,7 @@ namespace AmethystWindows.DesktopWindowsManager
         public MainWindowViewModel mainWindowViewModel = App.Current != null ? App.Current.MainWindow.DataContext as MainWindowViewModel : new MainWindowViewModel();
 
         private DebounceDispatcher debounceDispatcher = new DebounceDispatcher(100);
+        private readonly DispatcherTimer closedWindowCleanupTimer;
 
         private readonly string[] FixedFilters = new string[] {
             "AmethystWindows",
@@ -79,6 +81,31 @@ namespace AmethystWindows.DesktopWindowsManager
 
             ExcludedWindows.CollectionChanged += ExcludedWindows_CollectionChanged;
             mainWindowViewModel.PropertyChanged += MainWindowViewModel_PropertyChanged;
+
+            // WinEvent destroy notifications can be missed for some windows. Reconcile
+            // dead HWNDs on the UI dispatcher so a stale second pane cannot remain tiled.
+            closedWindowCleanupTimer = new DispatcherTimer
+            {
+                Interval = TimeSpan.FromMilliseconds(250)
+            };
+            closedWindowCleanupTimer.Tick += (sender, args) => ReconcileClosedWindows();
+            closedWindowCleanupTimer.Start();
+        }
+
+        private void ReconcileClosedWindows()
+        {
+            foreach (KeyValuePair<Pair<VirtualDesktop, HMONITOR>, ObservableCollection<DesktopWindow>> desktopMonitor in Windows.ToArray())
+            {
+                foreach (DesktopWindow window in desktopMonitor.Value.ToArray())
+                {
+                    if (!User32.IsWindow(window.Window) ||
+                        !User32.IsWindowVisible(window.Window) ||
+                        User32.IsIconic(window.Window))
+                    {
+                        RemoveWindow(window);
+                    }
+                }
+            }
         }
 
         private void ExcludedWindows_CollectionChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
