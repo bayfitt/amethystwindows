@@ -55,8 +55,13 @@ namespace AmethystWindows.DesktopWindowsManager
                 SubscribeWindowsCollectionChanged(key, true);
             }
             ObservableCollection<DesktopWindow> windows = Windows[key];
-            int activePane = ActivePaneIndices.TryGetValue(key, out int currentPane) ? currentPane : 0;
-            int pane = requestedPane ?? (windows.Count == 0 ? 0 : 1 - activePane);
+            int paneCount = GetPaneCount(key);
+            int activePane = ActivePaneIndices.TryGetValue(key, out int currentPane)
+                ? ((currentPane % paneCount) + paneCount) % paneCount
+                : 0;
+            int pane = requestedPane.HasValue
+                ? ((requestedPane.Value % paneCount) + paneCount) % paneCount
+                : GetNextPane(windows, activePane, paneCount);
 
             foreach (DesktopWindow existing in windows.Where(window => window.PaneIndex == pane))
             {
@@ -70,6 +75,60 @@ namespace AmethystWindows.DesktopWindowsManager
             {
                 ActivePaneIndices[key] = pane;
             }
+        }
+
+        private int GetPaneCount(Pair<VirtualDesktop, HMONITOR> key)
+        {
+            ViewModelDesktopMonitor monitor = mainWindowViewModel.DesktopMonitors.FirstOrDefault(item =>
+                item.Monitor.Equals(key.Value) && item.VirtualDesktop.Equals(key.Key));
+            return monitor?.Layout.PaneCount() ?? Layout.Tall.PaneCount();
+        }
+
+        private static int GetNextPane(IReadOnlyCollection<DesktopWindow> windows, int activePane, int paneCount)
+        {
+            if (windows.Count == 0)
+            {
+                return 0;
+            }
+
+            for (int offset = 1; offset <= paneCount; offset++)
+            {
+                int candidate = (activePane + offset) % paneCount;
+                if (!windows.Any(window => window.PaneIndex == candidate))
+                {
+                    return candidate;
+                }
+            }
+
+            // Every slot is occupied, so a new window covers the next inactive slot.
+            return (activePane + 1) % paneCount;
+        }
+
+        public void ReassignWindowsToLayout(Pair<VirtualDesktop, HMONITOR> key, Layout layout)
+        {
+            if (!Windows.TryGetValue(key, out ObservableCollection<DesktopWindow> windows) || windows.Count == 0)
+            {
+                return;
+            }
+
+            int paneCount = layout.PaneCount();
+            for (int i = 0; i < windows.Count; i++)
+            {
+                windows[i].PaneIndex = i % paneCount;
+            }
+
+            foreach (IGrouping<int, DesktopWindow> pane in windows.GroupBy(window => window.PaneIndex))
+            {
+                int stackOrder = pane.Count() - 1;
+                foreach (DesktopWindow window in pane)
+                {
+                    window.StackOrder = stackOrder--;
+                }
+            }
+
+            DesktopWindow foreground = windows.FirstOrDefault(window => window.Window == User32.GetForegroundWindow());
+            ActivePaneIndices[key] = foreground?.PaneIndex ?? windows[windows.Count - 1].PaneIndex;
+            Draw(key);
         }
 
         public void ActivateWindow(DesktopWindow desktopWindow)
@@ -304,11 +363,14 @@ namespace AmethystWindows.DesktopWindowsManager
                 Windows[key].Add(active);
 
                 int stackIndex = 0;
+                int paneCount = GetPaneCount(key);
+                int[] paneStackOrders = new int[paneCount];
+                paneStackOrders[0] = 1;
                 foreach (DesktopWindow window in groupWindows.Where(window => window.Window != active.Window))
                 {
-                    int pane = stackIndex % 2 == 0 ? 1 : 0;
+                    int pane = (stackIndex + 1) % paneCount;
                     window.PaneIndex = pane;
-                    window.StackOrder = stackIndex / 2 + (pane == 0 ? 1 : 0);
+                    window.StackOrder = paneStackOrders[pane]++;
                     Windows[key].Add(window);
                     stackIndex++;
                 }

@@ -24,7 +24,36 @@ namespace AmethystWindows.DesktopWindowsManager
         VertGrid = 3,
         Monocle = 4,
         Wide = 5,
-        Tall = 6
+        Tall = 6,
+        ThreeColumn = 7,
+        Grid2x2 = 8
+    }
+
+    public static class LayoutExtensions
+    {
+        public static int PaneCount(this Layout layout)
+        {
+            return layout switch
+            {
+                Layout.Monocle => 1,
+                Layout.Tall => 2,
+                Layout.ThreeColumn => 3,
+                Layout.Grid2x2 => 4,
+                _ => 2
+            };
+        }
+
+        public static string DisplayName(this Layout layout)
+        {
+            return layout switch
+            {
+                Layout.Monocle => "Full Screen",
+                Layout.Tall => "Two Pane",
+                Layout.ThreeColumn => "Three Columns",
+                Layout.Grid2x2 => "2 × 2 Grid",
+                _ => "Two Pane"
+            };
+        }
     }
 
     public struct Pair<K, V>

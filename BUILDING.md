@@ -33,6 +33,10 @@ if ($machine -ne 0xAA64) { throw ('Expected ARM64 PE machine 0xAA64, found 0x{0:
 'ARM64 executable verified.'
 ```
 
+## Layout modes
+
+The default `Alt+Shift+Space` shortcut cycles clockwise through Full Screen, Tall, Three Columns, and 2 × 2 Grid. `Alt+Shift+Win+Space` cycles in reverse. Each change displays a brief on-screen label. Layout geometry, slot stacking, four-mode cycling, and Tall pane-resize behavior are covered by the test project.
+
 ## Windows 11 virtual desktop dependency
 
 The app uses `Slions.VirtualDesktop` 6.9.2. The upstream `VirtualDesktop` 5.0.5 dependency failed to resolve `IApplicationView` on Windows 11 build 26100, so this fork uses the compatible replacement. Keep this dependency change when building for ARM64 and Windows 11.

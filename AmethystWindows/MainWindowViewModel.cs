@@ -450,6 +450,14 @@ namespace AmethystWindows
 
     public class ViewModelDesktopMonitor : INotifyPropertyChanged
     {
+        private static readonly Layout[] SupportedLayoutCycle =
+        {
+            Layout.Monocle,
+            Layout.Tall,
+            Layout.ThreeColumn,
+            Layout.Grid2x2
+        };
+
         private HMONITOR _monitor;
         private VirtualDesktop _virtualDesktop;
         private int _factor;
@@ -488,8 +496,9 @@ namespace AmethystWindows
 
             set
             {
-                // This Windows build intentionally exposes only the two-pane and fullscreen modes.
-                _layout = value == Layout.Monocle ? Layout.Monocle : Layout.Tall;
+                _layout = value is Layout.Monocle or Layout.Tall or Layout.ThreeColumn or Layout.Grid2x2
+                    ? value
+                    : Layout.Tall;
                 PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Layout)));
             }
         }
@@ -514,14 +523,29 @@ namespace AmethystWindows
             ++Factor;
         }
 
-        public void RotateLayoutClockwise()
+        public Layout RotateLayoutClockwise()
         {
-            Layout = Layout == Layout.Monocle ? Layout.Tall : Layout.Monocle;
+            Layout = NextLayout(Layout, true);
+            return Layout;
         }
 
-        public void RotateLayoutCounterClockwise()
+        public Layout RotateLayoutCounterClockwise()
         {
-            Layout = Layout == Layout.Monocle ? Layout.Tall : Layout.Monocle;
+            Layout = NextLayout(Layout, false);
+            return Layout;
+        }
+
+        internal static Layout NextLayout(Layout currentLayout, bool clockwise)
+        {
+            int currentIndex = Array.IndexOf(SupportedLayoutCycle, currentLayout);
+            if (currentIndex < 0)
+            {
+                currentIndex = Array.IndexOf(SupportedLayoutCycle, Layout.Tall);
+            }
+
+            int direction = clockwise ? 1 : -1;
+            int nextIndex = (currentIndex + direction + SupportedLayoutCycle.Length) % SupportedLayoutCycle.Length;
+            return SupportedLayoutCycle[nextIndex];
         }
 
         public override bool Equals(object? obj)

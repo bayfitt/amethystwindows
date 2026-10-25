@@ -147,6 +147,18 @@ namespace AmethystWindows.DesktopWindowsManager
                         }
                     }
                     break;
+                case Layout.ThreeColumn:
+                    foreach (Rectangle rectangle in GenerateSlotLayout(mWidth, mHeight, windowsCount, layoutPadding, 3, false, paneIndices))
+                    {
+                        yield return rectangle;
+                    }
+                    break;
+                case Layout.Grid2x2:
+                    foreach (Rectangle rectangle in GenerateSlotLayout(mWidth, mHeight, windowsCount, layoutPadding, 4, true, paneIndices))
+                    {
+                        yield return rectangle;
+                    }
+                    break;
                 case Layout.Monocle:
                     for (i = 0; i < windowsCount; i++)
                     {
@@ -190,6 +202,61 @@ namespace AmethystWindows.DesktopWindowsManager
                         }
                     }
                     break;
+            }
+        }
+
+        private static IEnumerable<Rectangle> GenerateSlotLayout(
+            int width,
+            int height,
+            int windowsCount,
+            int layoutPadding,
+            int slotCapacity,
+            bool twoByTwo,
+            IReadOnlyList<int>? paneIndices)
+        {
+            if (windowsCount <= 0)
+            {
+                yield break;
+            }
+
+            int[] assignedSlots = new int[windowsCount];
+            for (int i = 0; i < windowsCount; i++)
+            {
+                int slot = paneIndices != null && i < paneIndices.Count ? paneIndices[i] : i;
+                assignedSlots[i] = ((slot % slotCapacity) + slotCapacity) % slotCapacity;
+            }
+
+            int[] occupiedSlots = assignedSlots.Distinct().ToArray();
+            if (occupiedSlots.Length == 1)
+            {
+                Rectangle fullWorkArea = new Rectangle(0, 0, width, height);
+                for (int i = 0; i < windowsCount; i++)
+                {
+                    yield return fullWorkArea;
+                }
+                yield break;
+            }
+
+            int columns = twoByTwo ? Math.Min(2, occupiedSlots.Length) : occupiedSlots.Length;
+            int rows = twoByTwo && occupiedSlots.Length > 2 ? 2 : 1;
+            int columnSize = width / columns;
+            int rowSize = height / rows;
+            Dictionary<int, Rectangle> rectanglesBySlot = new Dictionary<int, Rectangle>();
+
+            for (int slotPosition = 0; slotPosition < occupiedSlots.Length; slotPosition++)
+            {
+                int column = slotPosition % columns;
+                int row = slotPosition / columns;
+                int x = column * columnSize;
+                int y = row * rowSize;
+                int tileWidth = column == columns - 1 ? width - x : Math.Max(0, columnSize - layoutPadding);
+                int tileHeight = row == rows - 1 ? height - y : Math.Max(0, rowSize - layoutPadding);
+                rectanglesBySlot[occupiedSlots[slotPosition]] = new Rectangle(x, y, tileWidth, tileHeight);
+            }
+
+            for (int i = 0; i < windowsCount; i++)
+            {
+                yield return rectanglesBySlot[assignedSlots[i]];
             }
         }
 

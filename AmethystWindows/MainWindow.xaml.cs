@@ -11,6 +11,7 @@ namespace AmethystWindows
     public partial class MainWindow : Window
     {
         private MainWindowViewModel mainWindowViewModel;
+        private LayoutNotificationWindow? layoutNotificationWindow;
 
         public MainWindow()
         {
@@ -35,7 +36,9 @@ namespace AmethystWindows
                     VirtualDesktop currentDesktop = VirtualDesktop.Current;
                     Pair<VirtualDesktop, HMONITOR> currentPair = new Pair<VirtualDesktop, HMONITOR>(currentDesktop, currentMonitor);
                     ViewModelDesktopMonitor viewModelDesktopMonitor = mainWindowViewModel.DesktopMonitors[currentPair];
-                    viewModelDesktopMonitor.RotateLayoutClockwise();
+                    Layout layout = viewModelDesktopMonitor.RotateLayoutClockwise();
+                    App.DWM.ReassignWindowsToLayout(currentPair, layout);
+                    ShowLayoutNotification(layout);
                     //string desktopLabel = string.IsNullOrEmpty(currentPair.Key.Name) ? $"Desktop {currentPair.Key.Id}" : currentPair.Key.Name;
                 }
                 if (wParam.ToInt32() == 0x12)
@@ -102,7 +105,9 @@ namespace AmethystWindows
                     VirtualDesktop currentDesktop = VirtualDesktop.Current;
                     Pair<VirtualDesktop, HMONITOR> currentPair = new Pair<VirtualDesktop, HMONITOR>(currentDesktop, currentMonitor);
                     ViewModelDesktopMonitor viewModelDesktopMonitor = mainWindowViewModel.DesktopMonitors[currentPair];
-                    viewModelDesktopMonitor.RotateLayoutCounterClockwise();
+                    Layout layout = viewModelDesktopMonitor.RotateLayoutCounterClockwise();
+                    App.DWM.ReassignWindowsToLayout(currentPair, layout);
+                    ShowLayoutNotification(layout);
                     //string desktopLabel = string.IsNullOrEmpty(currentPair.Key.Name) ? $"Desktop {currentPair.Key.Id}" : currentPair.Key.Name;
                     //mainWindowViewModel.Notify(desktopLabel, viewModelDesktopMonitor.Layout.ToString(), 100);
 
@@ -133,14 +138,6 @@ namespace AmethystWindows
                     DesktopWindow selected = App.DWM.FindWindow(selectedWindow);
                     App.DWM.MoveWindowNextScreen(selected);
                 }
-                if (wParam.ToInt32() == 0x21)
-                {
-                    HMONITOR currentMonitor = User32.MonitorFromWindow(User32.GetForegroundWindow(), User32.MonitorFlags.MONITOR_DEFAULTTONEAREST);
-                    VirtualDesktop currentDesktop = VirtualDesktop.Current;
-                    Pair<VirtualDesktop, HMONITOR> currentPair = new Pair<VirtualDesktop, HMONITOR>(currentDesktop, currentMonitor);
-                    ViewModelDesktopMonitor viewModelDesktopMonitor = mainWindowViewModel.DesktopMonitors[currentPair];
-                    viewModelDesktopMonitor.RotateLayoutCounterClockwise();
-                }
                 if (wParam.ToInt32() == 0x26)
                 {
                     HWND selectedWindow = User32.GetForegroundWindow();
@@ -164,6 +161,20 @@ namespace AmethystWindows
             }
 
             return IntPtr.Zero;
+        }
+
+        private void ShowLayoutNotification(Layout layout)
+        {
+            layoutNotificationWindow?.Close();
+            layoutNotificationWindow = new LayoutNotificationWindow(layout);
+            layoutNotificationWindow.Closed += (sender, args) =>
+            {
+                if (ReferenceEquals(sender, layoutNotificationWindow))
+                {
+                    layoutNotificationWindow = null;
+                }
+            };
+            layoutNotificationWindow.Show();
         }
     }
 }

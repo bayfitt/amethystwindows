@@ -1,3 +1,4 @@
+using AmethystWindows;
 using AmethystWindows.DesktopWindowsManager;
 using System;
 using System.Collections.Generic;
@@ -56,6 +57,94 @@ namespace AmethystWindowsTests
 
             Assert.Equal(3, rectangles.Length);
             Assert.All(rectangles, rectangle => Assert.Equal(new Rectangle(0, 0, 1000, 800), rectangle));
+        }
+
+        [Fact]
+        public void ThreeColumnUsesThreeSlotsAndStacksWindowsAfterTheThird()
+        {
+            Rectangle[] rectangles = desktopWindowsManager.GridGenerator(
+                1200,
+                800,
+                4,
+                0,
+                Layout.ThreeColumn,
+                0,
+                new[] { 0, 1, 2, 0 }).ToArray();
+
+            Assert.Equal(new Rectangle(0, 0, 400, 800), rectangles[0]);
+            Assert.Equal(new Rectangle(400, 0, 400, 800), rectangles[1]);
+            Assert.Equal(new Rectangle(800, 0, 400, 800), rectangles[2]);
+            Assert.Equal(rectangles[0], rectangles[3]);
+        }
+
+        [Fact]
+        public void TwoByTwoUsesFourSlotsAndStacksWindowsAfterTheFourth()
+        {
+            Rectangle[] rectangles = desktopWindowsManager.GridGenerator(
+                1200,
+                800,
+                5,
+                0,
+                Layout.Grid2x2,
+                0,
+                new[] { 0, 1, 2, 3, 1 }).ToArray();
+
+            Assert.Equal(new Rectangle(0, 0, 600, 400), rectangles[0]);
+            Assert.Equal(new Rectangle(600, 0, 600, 400), rectangles[1]);
+            Assert.Equal(new Rectangle(0, 400, 600, 400), rectangles[2]);
+            Assert.Equal(new Rectangle(600, 400, 600, 400), rectangles[3]);
+            Assert.Equal(rectangles[1], rectangles[4]);
+        }
+
+        [Fact]
+        public void ThreeColumnExpandsWhenOnlyOneSlotRemainsOccupied()
+        {
+            Rectangle[] rectangles = desktopWindowsManager.GridGenerator(
+                1200,
+                800,
+                2,
+                0,
+                Layout.ThreeColumn,
+                0,
+                new[] { 2, 2 }).ToArray();
+
+            Assert.All(rectangles, rectangle => Assert.Equal(new Rectangle(0, 0, 1200, 800), rectangle));
+        }
+
+        [Fact]
+        public void LayoutHotkeyCyclesThroughAllFourModesInBothDirections()
+        {
+            Layout[] expectedClockwise =
+            {
+                Layout.Tall,
+                Layout.ThreeColumn,
+                Layout.Grid2x2,
+                Layout.Monocle,
+                Layout.Tall
+            };
+            Layout current = Layout.Monocle;
+
+            foreach (Layout expected in expectedClockwise)
+            {
+                current = ViewModelDesktopMonitor.NextLayout(current, true);
+                Assert.Equal(expected, current);
+            }
+
+            Layout[] expectedCounterclockwise =
+            {
+                Layout.Monocle,
+                Layout.Grid2x2,
+                Layout.ThreeColumn,
+                Layout.Tall,
+                Layout.Monocle
+            };
+            current = Layout.Tall;
+
+            foreach (Layout expected in expectedCounterclockwise)
+            {
+                current = ViewModelDesktopMonitor.NextLayout(current, false);
+                Assert.Equal(expected, current);
+            }
         }
 
         [Fact]

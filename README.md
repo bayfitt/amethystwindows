@@ -1,6 +1,6 @@
 # Archived
 
-The upstream project was archived in May 2023. This fork adds a native Windows ARM64 build and keeps the tiling behavior to the two Amethyst layouts below.
+The upstream project was archived in May 2023. This fork adds a native Windows ARM64 build and focuses on four layouts: Full Screen, Tall, Three Columns, and 2 × 2 Grid.
 
 See [BUILDING.md](BUILDING.md) for the ARM64 build steps and runtime notes.
 
@@ -38,8 +38,8 @@ The keyboard shortcuts configured are:
 
 | Shortcut                  | Description                                   |
 |---------------------------|-----------------------------------------------|
-| `mod1 + space`            | Toggle between Tall and Monocle               |
-| `mod2 + space`            | Toggle between Tall and Monocle               |
+| `mod1 + space`            | Cycle clockwise through the four layouts       |
+| `mod2 + space`            | Cycle counterclockwise through the four layouts |
 | `mod1 + enter`            | Swap focused window to main window            |
 | `mod1 + H`                | Swap focused window counterclockwise          |
 | `mod1 + L`                | Swap focused window clockwise                 |
@@ -67,6 +67,14 @@ Tall has two side-by-side slots. New windows alternate between the slots and cov
 
 ### Monocle
 Monocle gives every managed window the same full-screen slot. The foreground window appears on top. Moving or resizing a window snaps it back into the full-screen slot.
+
+### Three Columns
+Three Columns divides the work area into up to three equal-width slots. New windows use the next empty slot, then stack in the next inactive slot once all three are occupied. If only one slot remains occupied, it fills the work area.
+
+### 2 × 2 Grid
+The 2 × 2 Grid arranges up to four slots in two columns and two rows. New windows use empty slots before stacking over the next inactive slot. With two occupied slots it uses two side-by-side panes; with three or four it uses the 2 × 2 grid. A lone occupied slot fills the work area.
+
+Each layout switch briefly shows the selected layout name on screen. `mod1 + space` cycles clockwise and `mod2 + space` cycles counterclockwise; with the defaults, these are `Alt+Shift+Space` and `Alt+Shift+Win+Space`.
 
 # About
 
