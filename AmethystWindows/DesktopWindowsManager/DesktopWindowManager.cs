@@ -28,6 +28,7 @@ namespace AmethystWindows.DesktopWindowsManager
         public MainWindowViewModel mainWindowViewModel = App.Current != null ? App.Current.MainWindow.DataContext as MainWindowViewModel : new MainWindowViewModel();
 
         private DebounceDispatcher debounceDispatcher = new DebounceDispatcher(100);
+        private readonly PendingMonitorDraws<Pair<VirtualDesktop, HMONITOR>> pendingMonitorDraws = new PendingMonitorDraws<Pair<VirtualDesktop, HMONITOR>>();
         private readonly DispatcherTimer closedWindowCleanupTimer;
 
         private readonly string[] FixedFilters = new string[] {
@@ -154,8 +155,40 @@ namespace AmethystWindows.DesktopWindowsManager
             }
             if (ModelViewPropertiesDraw.Contains(e.PropertyName))
             {
-                if (ModelViewPropertiesDrawMonitor.Contains(e.PropertyName) && mainWindowViewModel.LastChangedDesktopMonitor.Key != null) debounceDispatcher.Debounce(() => Draw(mainWindowViewModel.LastChangedDesktopMonitor));
-                else debounceDispatcher.Debounce(() => Draw());
+                if (ModelViewPropertiesDrawMonitor.Contains(e.PropertyName))
+                {
+                    Pair<VirtualDesktop, HMONITOR> changedMonitor = mainWindowViewModel.LastChangedDesktopMonitor;
+                    if (changedMonitor.Key != null)
+                    {
+                        pendingMonitorDraws.Add(changedMonitor);
+                    }
+                    else
+                    {
+                        pendingMonitorDraws.AddAll();
+                    }
+
+                    debounceDispatcher.Debounce(DrawPendingMonitors);
+                }
+                else
+                {
+                    pendingMonitorDraws.AddAll();
+                    debounceDispatcher.Debounce(DrawPendingMonitors);
+                }
+            }
+        }
+
+        private void DrawPendingMonitors()
+        {
+            PendingMonitorDrawRequest<Pair<VirtualDesktop, HMONITOR>> request = pendingMonitorDraws.Take();
+            if (request.DrawAll)
+            {
+                Draw();
+                return;
+            }
+
+            foreach (Pair<VirtualDesktop, HMONITOR> desktopMonitor in request.Monitors)
+            {
+                Draw(desktopMonitor);
             }
         }
 
@@ -195,5 +228,55 @@ namespace AmethystWindows.DesktopWindowsManager
             WindowsSubscribed[desktopMonitor] = enabled;
         }
 
+    }
+
+    internal sealed class PendingMonitorDraws<TKey> where TKey : notnull
+    {
+        private readonly object sync = new object();
+        private readonly HashSet<TKey> monitors = new HashSet<TKey>();
+        private bool drawAll;
+
+        public void Add(TKey monitor)
+        {
+            lock (sync)
+            {
+                if (!drawAll)
+                {
+                    monitors.Add(monitor);
+                }
+            }
+        }
+
+        public void AddAll()
+        {
+            lock (sync)
+            {
+                drawAll = true;
+                monitors.Clear();
+            }
+        }
+
+        public PendingMonitorDrawRequest<TKey> Take()
+        {
+            lock (sync)
+            {
+                PendingMonitorDrawRequest<TKey> request = new PendingMonitorDrawRequest<TKey>(drawAll, monitors.ToArray());
+                drawAll = false;
+                monitors.Clear();
+                return request;
+            }
+        }
+    }
+
+    internal sealed class PendingMonitorDrawRequest<TKey> where TKey : notnull
+    {
+        public bool DrawAll { get; }
+        public IReadOnlyList<TKey> Monitors { get; }
+
+        public PendingMonitorDrawRequest(bool drawAll, IReadOnlyList<TKey> monitors)
+        {
+            DrawAll = drawAll;
+            Monitors = monitors;
+        }
     }
 }
