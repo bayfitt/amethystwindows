@@ -241,7 +241,10 @@ namespace AmethystWindows.DesktopWindowsManager
                 assignedSlots[i] = ((slot % slotCapacity) + slotCapacity) % slotCapacity;
             }
 
-            int[] occupiedSlots = assignedSlots.Distinct().ToArray();
+            // Pane indices are the stable logical slots used by resize handling.
+            // Keep their geometry stable even when windows are enumerated in a
+            // different order (for example after closing or reassigning a pane).
+            int[] occupiedSlots = assignedSlots.Distinct().OrderBy(slot => slot).ToArray();
             if (occupiedSlots.Length == 1)
             {
                 Rectangle fullWorkArea = new Rectangle(0, 0, width, height);

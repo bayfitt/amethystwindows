@@ -563,6 +563,14 @@ namespace AmethystWindows
             int gridBottomRowFactor = 0,
             int gridRightColumnFactor = 0)
         {
+            if (layout == Layout.Grid2x2)
+            {
+                factor = 0;
+                secondaryFactor = 0;
+                gridBottomRowFactor = 0;
+                gridRightColumnFactor = 0;
+            }
+
             Monitor = monitor;
             VirtualDesktop = virtualDesktop;
             Factor = factor;

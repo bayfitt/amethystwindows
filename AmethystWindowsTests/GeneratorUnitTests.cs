@@ -66,6 +66,24 @@ namespace AmethystWindowsTests
         }
 
         [Fact]
+        public void LoadingGrid2x2WithSavedOffsetsStartsWithEvenDividers()
+        {
+            ViewModelDesktopMonitor monitor = new ViewModelDesktopMonitor(
+                default,
+                null!,
+                -11,
+                Layout.Grid2x2,
+                secondaryFactor: 18,
+                gridBottomRowFactor: -5,
+                gridRightColumnFactor: 7);
+
+            Assert.Equal(0, monitor.Factor);
+            Assert.Equal(0, monitor.SecondaryFactor);
+            Assert.Equal(0, monitor.GridBottomRowFactor);
+            Assert.Equal(0, monitor.GridRightColumnFactor);
+        }
+
+        [Fact]
         public void TallFillsTheWorkAreaWhenOneWindowRemainsInTheSecondPane()
         {
             Rectangle[] rectangles = desktopWindowsManager.GridGenerator(
@@ -135,6 +153,24 @@ namespace AmethystWindowsTests
         }
 
         [Fact]
+        public void TwoByTwoKeepsLogicalSlotGeometryWhenWindowOrderChanges()
+        {
+            Rectangle[] rectangles = desktopWindowsManager.GridGenerator(
+                1200,
+                800,
+                4,
+                0,
+                Layout.Grid2x2,
+                0,
+                new[] { 2, 0, 3, 1 }).ToArray();
+
+            Assert.Equal(new Rectangle(0, 400, 600, 400), rectangles[0]);
+            Assert.Equal(new Rectangle(0, 0, 600, 400), rectangles[1]);
+            Assert.Equal(new Rectangle(600, 400, 600, 400), rectangles[2]);
+            Assert.Equal(new Rectangle(600, 0, 600, 400), rectangles[3]);
+        }
+
+        [Fact]
         public void ThreeColumnLayoutAppliesBothVerticalDividerFactors()
         {
             Rectangle[] rectangles = desktopWindowsManager.GridGenerator(
@@ -171,6 +207,127 @@ namespace AmethystWindowsTests
             Assert.Equal(new Rectangle(650, 0, 550, 425), rectangles[1]);
             Assert.Equal(new Rectangle(0, 350, 575, 450), rectangles[2]);
             Assert.Equal(new Rectangle(575, 425, 625, 375), rectangles[3]);
+        }
+
+        [Fact]
+        public void TwoByTwoResizeUpdatesOnlyTheDividerForTheChangedRowOrColumn()
+        {
+            AssertGridResizeUpdatesFactors(
+                0, new Rectangle(0, 0, 600, 400), new Rectangle(0, 0, 640, 400),
+                factor: 4, secondaryFactor: 2, bottomRowFactor: 3, rightColumnFactor: 4);
+            AssertGridResizeUpdatesFactors(
+                1, new Rectangle(600, 0, 600, 400), new Rectangle(640, 0, 560, 400),
+                factor: 4, secondaryFactor: 2, bottomRowFactor: 3, rightColumnFactor: 4);
+            AssertGridResizeUpdatesFactors(
+                2, new Rectangle(0, 400, 600, 400), new Rectangle(0, 400, 560, 400),
+                factor: 1, secondaryFactor: 2, bottomRowFactor: -4, rightColumnFactor: 4);
+            AssertGridResizeUpdatesFactors(
+                3, new Rectangle(600, 400, 600, 400), new Rectangle(560, 400, 640, 400),
+                factor: 1, secondaryFactor: 2, bottomRowFactor: -4, rightColumnFactor: 4);
+            AssertGridResizeUpdatesFactors(
+                0, new Rectangle(0, 0, 600, 400), new Rectangle(0, 0, 600, 430),
+                factor: 1, secondaryFactor: 3, bottomRowFactor: 3, rightColumnFactor: 4);
+            AssertGridResizeUpdatesFactors(
+                2, new Rectangle(0, 400, 600, 400), new Rectangle(0, 430, 600, 370),
+                factor: 1, secondaryFactor: 3, bottomRowFactor: 3, rightColumnFactor: 4);
+            AssertGridResizeUpdatesFactors(
+                1, new Rectangle(600, 0, 600, 400), new Rectangle(600, 0, 600, 430),
+                factor: 1, secondaryFactor: 2, bottomRowFactor: 3, rightColumnFactor: 3);
+            AssertGridResizeUpdatesFactors(
+                3, new Rectangle(600, 400, 600, 400), new Rectangle(600, 430, 600, 370),
+                factor: 1, secondaryFactor: 2, bottomRowFactor: 3, rightColumnFactor: 3);
+        }
+
+        [Fact]
+        public void ResizingTopLeftGridPanePushesTopRightWithoutOverlappingAnyPane()
+        {
+            bool adjusted = DesktopWindowsManager.TryAdjustGridSplitFactorsFromResize(
+                0,
+                4,
+                new Rectangle(0, 0, 600, 400),
+                new Rectangle(0, 0, 700, 400),
+                0,
+                0,
+                1200,
+                800,
+                0,
+                0,
+                0,
+                0,
+                25,
+                0,
+                0,
+                0,
+                0,
+                out int factor,
+                out int secondaryFactor,
+                out int bottomRowFactor,
+                out int rightColumnFactor);
+
+            Assert.True(adjusted);
+            Rectangle[] rectangles = desktopWindowsManager.GridGenerator(
+                1200,
+                800,
+                4,
+                factor,
+                Layout.Grid2x2,
+                0,
+                new[] { 0, 1, 2, 3 },
+                secondaryFactor,
+                bottomRowFactor,
+                rightColumnFactor).ToArray();
+
+            Assert.Equal(new Rectangle(0, 0, 700, 400), rectangles[0]);
+            Assert.Equal(new Rectangle(700, 0, 500, 400), rectangles[1]);
+            Assert.Equal(new Rectangle(0, 400, 600, 400), rectangles[2]);
+            Assert.Equal(new Rectangle(600, 400, 600, 400), rectangles[3]);
+
+            for (int i = 0; i < rectangles.Length; i++)
+            {
+                for (int j = i + 1; j < rectangles.Length; j++)
+                {
+                    Assert.False(rectangles[i].IntersectsWith(rectangles[j]));
+                }
+            }
+        }
+
+        private static void AssertGridResizeUpdatesFactors(
+            int panePosition,
+            Rectangle oldBounds,
+            Rectangle resizedBounds,
+            int factor,
+            int secondaryFactor,
+            int bottomRowFactor,
+            int rightColumnFactor)
+        {
+            bool adjusted = DesktopWindowsManager.TryAdjustGridSplitFactorsFromResize(
+                panePosition,
+                4,
+                oldBounds,
+                resizedBounds,
+                0,
+                0,
+                1200,
+                800,
+                0,
+                0,
+                0,
+                0,
+                10,
+                1,
+                2,
+                3,
+                4,
+                out int adjustedFactor,
+                out int adjustedSecondaryFactor,
+                out int adjustedBottomRowFactor,
+                out int adjustedRightColumnFactor);
+
+            Assert.True(adjusted);
+            Assert.Equal(factor, adjustedFactor);
+            Assert.Equal(secondaryFactor, adjustedSecondaryFactor);
+            Assert.Equal(bottomRowFactor, adjustedBottomRowFactor);
+            Assert.Equal(rightColumnFactor, adjustedRightColumnFactor);
         }
 
         [Fact]

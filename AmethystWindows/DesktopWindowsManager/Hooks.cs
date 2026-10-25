@@ -133,10 +133,12 @@ namespace AmethystWindows.DesktopWindowsManager
                                 {
                                     DesktopWindowsManager.RepositionWindow(moved, newMoved);
                                 }
-                                else if (!DesktopWindowsManager.TryAdjustSharedSplitFromResize(moved, newMoved))
+                                else
                                 {
-                                    // Reapply the active layout after moving a window or resizing an
-                                    // outer edge. Shared dividers update their saved split positions.
+                                    // Shared dividers update their saved split positions. Redraw
+                                    // after either kind of resize so the neighboring window follows
+                                    // the divider and only its row or column changes.
+                                    DesktopWindowsManager.TryAdjustSharedSplitFromResize(moved, newMoved);
                                     DesktopWindowsManager.Draw(oldDesktopMonitor);
                                 }
                             }

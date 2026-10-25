@@ -233,9 +233,7 @@ namespace AmethystWindows.DesktopWindowsManager
             int layoutWidth = monitorInfo.rcWork.Width - mainWindowViewModel.MarginLeft - mainWindowViewModel.MarginRight;
             int layoutHeight = monitorInfo.rcWork.Height - mainWindowViewModel.MarginTop - mainWindowViewModel.MarginBottom;
             int columns = monitor.Layout == Layout.ThreeColumn ? occupiedPanes.Length : Math.Min(2, occupiedPanes.Length);
-            int rows = monitor.Layout == Layout.Grid2x2 && occupiedPanes.Length > 2 ? 2 : 1;
             int column = panePosition % columns;
-            int row = panePosition / columns;
             Rectangle oldBounds = ToRectangle(oldDesktopWindow.Info.rcWindow);
             Rectangle resizedBounds = ToRectangle(resizedDesktopWindow.Info.rcWindow);
             bool adjusted = false;
@@ -290,48 +288,121 @@ namespace AmethystWindows.DesktopWindowsManager
             }
             else
             {
-                bool hasLeftNeighbor = column > 0;
-                bool hasRightNeighbor = column < columns - 1 && panePosition + 1 < occupiedPanes.Length && (panePosition + 1) / columns == row;
-                if (hasLeftNeighbor || hasRightNeighbor)
-                {
-                    int minimumPaneWidth = GetMinimumPaneExtent(layoutWidth, columns);
-                    if (TryCalculateSharedSplitFactor(
-                        oldBounds, resizedBounds, true, hasRightNeighbor, layoutX, layoutWidth, resizedDesktopWindow.BorderX,
-                        mainWindowViewModel.Padding, mainWindowViewModel.LayoutPadding, mainWindowViewModel.Step,
-                        layoutWidth / 2, minimumPaneWidth, layoutWidth - minimumPaneWidth, out int factor))
-                    {
-                        if (row == 0)
-                        {
-                            monitor.Factor = factor;
-                        }
-                        else
-                        {
-                            monitor.GridBottomRowFactor = factor;
-                        }
-                        adjusted = true;
-                    }
-                }
+                adjusted = TryAdjustGridSplitFactorsFromResize(
+                    panePosition,
+                    occupiedPanes.Length,
+                    oldBounds,
+                    resizedBounds,
+                    layoutX,
+                    layoutY,
+                    layoutWidth,
+                    layoutHeight,
+                    resizedDesktopWindow.BorderX,
+                    resizedDesktopWindow.BorderY,
+                    mainWindowViewModel.Padding,
+                    mainWindowViewModel.LayoutPadding,
+                    mainWindowViewModel.Step,
+                    monitor.Factor,
+                    monitor.SecondaryFactor,
+                    monitor.GridBottomRowFactor,
+                    monitor.GridRightColumnFactor,
+                    out int factor,
+                    out int secondaryFactor,
+                    out int gridBottomRowFactor,
+                    out int gridRightColumnFactor);
 
-                bool hasTopNeighbor = row > 0;
-                bool hasBottomNeighbor = row < rows - 1 && panePosition + columns < occupiedPanes.Length;
-                if (hasTopNeighbor || hasBottomNeighbor)
+                if (adjusted)
                 {
-                    int minimumPaneHeight = GetMinimumPaneExtent(layoutHeight, rows);
-                    if (TryCalculateSharedSplitFactor(
-                        oldBounds, resizedBounds, false, hasBottomNeighbor, layoutY, layoutHeight, resizedDesktopWindow.BorderY,
-                        mainWindowViewModel.Padding, mainWindowViewModel.LayoutPadding, mainWindowViewModel.Step,
-                        layoutHeight / 2, minimumPaneHeight, layoutHeight - minimumPaneHeight, out int factor))
+                    monitor.Factor = factor;
+                    monitor.SecondaryFactor = secondaryFactor;
+                    monitor.GridBottomRowFactor = gridBottomRowFactor;
+                    monitor.GridRightColumnFactor = gridRightColumnFactor;
+                }
+            }
+
+            return adjusted;
+        }
+
+        internal static bool TryAdjustGridSplitFactorsFromResize(
+            int panePosition,
+            int occupiedPaneCount,
+            Rectangle oldBounds,
+            Rectangle resizedBounds,
+            int layoutX,
+            int layoutY,
+            int layoutWidth,
+            int layoutHeight,
+            int borderX,
+            int borderY,
+            int padding,
+            int layoutPadding,
+            int step,
+            int factor,
+            int secondaryFactor,
+            int gridBottomRowFactor,
+            int gridRightColumnFactor,
+            out int adjustedFactor,
+            out int adjustedSecondaryFactor,
+            out int adjustedGridBottomRowFactor,
+            out int adjustedGridRightColumnFactor)
+        {
+            adjustedFactor = factor;
+            adjustedSecondaryFactor = secondaryFactor;
+            adjustedGridBottomRowFactor = gridBottomRowFactor;
+            adjustedGridRightColumnFactor = gridRightColumnFactor;
+
+            if (occupiedPaneCount < 2 || panePosition < 0 || panePosition >= occupiedPaneCount)
+            {
+                return false;
+            }
+
+            int columns = Math.Min(2, occupiedPaneCount);
+            int rows = occupiedPaneCount > 2 ? 2 : 1;
+            int column = panePosition % columns;
+            int row = panePosition / columns;
+            bool hasLeftNeighbor = column > 0;
+            bool hasRightNeighbor = column < columns - 1 && panePosition + 1 < occupiedPaneCount && (panePosition + 1) / columns == row;
+            bool hasTopNeighbor = row > 0;
+            bool hasBottomNeighbor = row < rows - 1 && panePosition + columns < occupiedPaneCount;
+            bool adjusted = false;
+
+            if (hasLeftNeighbor || hasRightNeighbor)
+            {
+                int minimumPaneWidth = GetMinimumPaneExtent(layoutWidth, columns);
+                if (TryCalculateSharedSplitFactor(
+                    oldBounds, resizedBounds, true, hasRightNeighbor, layoutX, layoutWidth, borderX,
+                    padding, layoutPadding, step,
+                    layoutWidth / 2, minimumPaneWidth, layoutWidth - minimumPaneWidth, out int splitFactor))
+                {
+                    if (row == 0)
                     {
-                        if (column == 0)
-                        {
-                            monitor.SecondaryFactor = factor;
-                        }
-                        else
-                        {
-                            monitor.GridRightColumnFactor = factor;
-                        }
-                        adjusted = true;
+                        adjustedFactor = splitFactor;
                     }
+                    else
+                    {
+                        adjustedGridBottomRowFactor = splitFactor;
+                    }
+                    adjusted = true;
+                }
+            }
+
+            if (hasTopNeighbor || hasBottomNeighbor)
+            {
+                int minimumPaneHeight = GetMinimumPaneExtent(layoutHeight, rows);
+                if (TryCalculateSharedSplitFactor(
+                    oldBounds, resizedBounds, false, hasBottomNeighbor, layoutY, layoutHeight, borderY,
+                    padding, layoutPadding, step,
+                    layoutHeight / 2, minimumPaneHeight, layoutHeight - minimumPaneHeight, out int splitFactor))
+                {
+                    if (column == 0)
+                    {
+                        adjustedSecondaryFactor = splitFactor;
+                    }
+                    else
+                    {
+                        adjustedGridRightColumnFactor = splitFactor;
+                    }
+                    adjusted = true;
                 }
             }
 
