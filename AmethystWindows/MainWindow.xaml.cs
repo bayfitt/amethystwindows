@@ -164,8 +164,7 @@ namespace AmethystWindows
 
         private void ChangeLayoutAtPointer(bool clockwise)
         {
-            System.Drawing.Point cursorPosition = System.Windows.Forms.Cursor.Position;
-            HMONITOR currentMonitor = User32.MonitorFromPoint(cursorPosition, User32.MonitorFlags.MONITOR_DEFAULTTONEAREST);
+            HMONITOR currentMonitor = DpiAwarenessScope.GetMonitorAtPhysicalCursor();
             Pair<VirtualDesktop, HMONITOR> currentPair = new Pair<VirtualDesktop, HMONITOR>(VirtualDesktop.Current, currentMonitor);
             ViewModelDesktopMonitor viewModelDesktopMonitor = mainWindowViewModel.GetOrCreateDesktopMonitor(currentPair);
             Layout layout = clockwise

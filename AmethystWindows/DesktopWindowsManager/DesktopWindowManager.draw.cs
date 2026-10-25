@@ -15,6 +15,7 @@ namespace AmethystWindows.DesktopWindowsManager
     {
         public void Draw(Pair<VirtualDesktop, HMONITOR> key)
         {
+            using DpiAwarenessScope dpiAwarenessScope = DpiAwarenessScope.EnterPerMonitorAwareV2();
             if (!mainWindowViewModel.Disabled) { 
                 if (!Windows.TryGetValue(key, out ObservableCollection<DesktopWindow> windows) || windows.Count == 0)
                 {
@@ -62,6 +63,7 @@ namespace AmethystWindows.DesktopWindowsManager
 
         public void Draw()
         {
+            using DpiAwarenessScope dpiAwarenessScope = DpiAwarenessScope.EnterPerMonitorAwareV2();
             if (!mainWindowViewModel.Disabled) {
                 foreach (var desktopMonitor in Windows)
                 {
