@@ -41,9 +41,17 @@ namespace AmethystWindows.DesktopWindowsManager
                         gridGenerator.ToArray()[w.Item1].Height
                     );
 
-                    DrawWindow(mX, mY, adjustedSize, w, hDWP1, windows.Count);
+                    hDWP1 = DrawWindow(mX, mY, adjustedSize, w, hDWP1);
                 }
-                User32.EndDeferWindowPos(hDWP1.DangerousGetHandle());
+                bool committed = hDWP1.DangerousGetHandle() != IntPtr.Zero && User32.EndDeferWindowPos(hDWP1.DangerousGetHandle());
+                if (!committed)
+                {
+                    for (int i = 0; i < windows.Count; i++)
+                    {
+                        Rectangle target = gridGenerator.ElementAt(i);
+                        SetWindowPositionDirect(mX, mY, target, windows[i]);
+                    }
+                }
 
                 foreach (var w in desktopMonitor.Value.Select((value, i) => new Tuple<int, DesktopWindow>(i, value)))
                 {
@@ -71,7 +79,7 @@ namespace AmethystWindows.DesktopWindowsManager
                         User32.ShowWindow(w.Item2.Window, ShowWindowCommand.SW_RESTORE);
                     }
 
-                    HDWP hDWP1 = User32.BeginDeferWindowPos(Windows.Count);
+                    HDWP hDWP1 = User32.BeginDeferWindowPos(desktopMonitor.Value.Count);
                     foreach (var w in desktopMonitor.Value.Select((value, i) => new Tuple<int, DesktopWindow>(i, value)))
                     {
                         Rectangle adjustedSize = new Rectangle(
@@ -81,9 +89,17 @@ namespace AmethystWindows.DesktopWindowsManager
                             gridGenerator.ToArray()[w.Item1].Height
                         );
 
-                        DrawWindow(mX, mY, adjustedSize, w, hDWP1, Windows.Count);
+                        hDWP1 = DrawWindow(mX, mY, adjustedSize, w, hDWP1);
                     }
-                    User32.EndDeferWindowPos(hDWP1.DangerousGetHandle());
+                    bool committed = hDWP1.DangerousGetHandle() != IntPtr.Zero && User32.EndDeferWindowPos(hDWP1.DangerousGetHandle());
+                    if (!committed)
+                    {
+                        for (int i = 0; i < desktopMonitor.Value.Count; i++)
+                        {
+                            Rectangle target = gridGenerator.ElementAt(i);
+                            SetWindowPositionDirect(mX, mY, target, desktopMonitor.Value[i]);
+                        }
+                    }
 
                     foreach (var w in desktopMonitor.Value.Select((value, i) => new Tuple<int, DesktopWindow>(i, value)))
                     {
@@ -130,14 +146,14 @@ namespace AmethystWindows.DesktopWindowsManager
             gridGenerator = GridGenerator(mWidth, mHeight, windowsCount, mCurrentFactor, mCurrentLayout, mainWindowViewModel.LayoutPadding, paneIndices);
         }
 
-        private void DrawWindow(int mX, int mY, Rectangle adjustedSize, Tuple<int, DesktopWindow> w, HDWP hDWP, int windowsCount)
+        private HDWP DrawWindow(int mX, int mY, Rectangle adjustedSize, Tuple<int, DesktopWindow> w, HDWP hDWP)
         {
             int X = mX + adjustedSize.X - w.Item2.BorderX / 2 + mainWindowViewModel.Padding;
             int Y = mY + adjustedSize.Y - w.Item2.BorderY / 2 + mainWindowViewModel.Padding;
 
             Y = Y <= mY ? mY : Y;
 
-            User32.DeferWindowPos(
+            return User32.DeferWindowPos(
                 hDWP,
                 w.Item2.Window,
                 HWND.HWND_NOTOPMOST,
@@ -150,6 +166,24 @@ namespace AmethystWindows.DesktopWindowsManager
                 User32.SetWindowPosFlags.SWP_NOZORDER |
                 User32.SetWindowPosFlags.SWP_NOOWNERZORDER
                 );
+        }
+
+        private void SetWindowPositionDirect(int mX, int mY, Rectangle adjustedSize, DesktopWindow window)
+        {
+            int x = mX + adjustedSize.X - window.BorderX / 2 + mainWindowViewModel.Padding;
+            int y = mY + adjustedSize.Y - window.BorderY / 2 + mainWindowViewModel.Padding;
+            y = y <= mY ? mY : y;
+            User32.SetWindowPos(
+                window.Window,
+                HWND.HWND_NOTOPMOST,
+                x,
+                y,
+                adjustedSize.Width + window.BorderX - 2 * mainWindowViewModel.Padding,
+                adjustedSize.Height + window.BorderY - 2 * mainWindowViewModel.Padding,
+                User32.SetWindowPosFlags.SWP_NOACTIVATE |
+                User32.SetWindowPosFlags.SWP_NOCOPYBITS |
+                User32.SetWindowPosFlags.SWP_NOZORDER |
+                User32.SetWindowPosFlags.SWP_NOOWNERZORDER);
         }
     }
 }

@@ -63,7 +63,7 @@ The keyboard shortcuts configured are:
 ## Layouts
 
 ### Tall
-Tall has two side-by-side slots. New windows alternate between the slots and cover the older window in their slot. Drag either side of the shared divider to resize it; both panes follow the new split. When only one managed window remains, it fills the work area.
+Tall has two side-by-side slots. New windows alternate between the slots and cover the older window in their slot. Drag either side of the shared divider to resize it; both panes follow the new split. When one pane's entire window stack closes, the remaining pane fills the work area.
 
 ### Monocle
 Monocle gives every managed window the same full-screen slot. The foreground window appears on top. Moving or resizing a window snaps it back into the full-screen slot.

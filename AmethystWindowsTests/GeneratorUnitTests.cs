@@ -43,6 +43,22 @@ namespace AmethystWindowsTests
         }
 
         [Fact]
+        public void TallFillsTheWorkAreaWhenOnlyOnePaneHasWindowsRemaining()
+        {
+            Rectangle[] rectangles = desktopWindowsManager.GridGenerator(
+                1000,
+                800,
+                3,
+                0,
+                Layout.Tall,
+                0,
+                new[] { 1, 1, 1 }).ToArray();
+
+            Assert.Equal(3, rectangles.Length);
+            Assert.All(rectangles, rectangle => Assert.Equal(new Rectangle(0, 0, 1000, 800), rectangle));
+        }
+
+        [Fact]
         public void ResizingTallMasterPaneUpdatesTheSharedSplit()
         {
             bool adjusted = DesktopWindowsManager.TryCalculateTallSplitFactor(

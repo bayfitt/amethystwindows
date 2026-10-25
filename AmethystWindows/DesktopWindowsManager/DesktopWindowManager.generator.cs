@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.Linq;
 using Vanara.PInvoke;
 using WindowsDesktop;
 
@@ -168,7 +169,13 @@ namespace AmethystWindows.DesktopWindowsManager
                     }
                     break;
                 case Layout.Tall:
-                    if (windowsCount == 1) yield return new Rectangle(0, 0, mWidth, mHeight);
+                    if (windowsCount == 1 || (paneIndices != null && paneIndices.Take(windowsCount).Distinct().Count() == 1))
+                    {
+                        for (i = 0; i < windowsCount; i++)
+                        {
+                            yield return new Rectangle(0, 0, mWidth, mHeight);
+                        }
+                    }
                     else
                     {
                         int masterWidth = mWidth / 2 + factor * mainWindowViewModel.Step;

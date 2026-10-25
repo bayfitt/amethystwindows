@@ -99,15 +99,18 @@ namespace AmethystWindows.DesktopWindowsManager
                 return;
             }
 
-            if (windows.Count == 1)
+            int[] occupiedPanes = windows.Select(window => window.PaneIndex).Distinct().ToArray();
+            if (occupiedPanes.Length == 1)
             {
-                // A Tall layout with one managed window occupies the whole work area.
-                // Normalize the surviving slot too, so the next window opens in the other pane.
-                windows[0].PaneIndex = 0;
-                windows[0].StackOrder = 0;
+                // If one pane's entire stack is gone, the remaining stack fills the work area.
+                // Normalize its slot so the next window opens in the opposite pane.
+                foreach (DesktopWindow remainingWindow in windows)
+                {
+                    remainingWindow.PaneIndex = 0;
+                }
                 ActivePaneIndices[key] = 0;
             }
-            else if (!windows.Any(window => window.PaneIndex == ActivePaneIndices.GetValueOrDefault(key)))
+            else if (!occupiedPanes.Contains(ActivePaneIndices.GetValueOrDefault(key)))
             {
                 DesktopWindow foreground = windows.FirstOrDefault(window => window.Window == User32.GetForegroundWindow());
                 ActivePaneIndices[key] = foreground?.PaneIndex ?? windows.FirstOrDefault()?.PaneIndex ?? 0;

@@ -98,9 +98,7 @@ namespace AmethystWindows.DesktopWindowsManager
             {
                 foreach (DesktopWindow window in desktopMonitor.Value.ToArray())
                 {
-                    if (!User32.IsWindow(window.Window) ||
-                        !User32.IsWindowVisible(window.Window) ||
-                        User32.IsIconic(window.Window))
+                    if (!User32.IsWindow(window.Window))
                     {
                         RemoveWindow(window);
                     }
