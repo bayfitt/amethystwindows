@@ -125,10 +125,16 @@ namespace AmethystWindows.DesktopWindowsManager
 
             Layout mCurrentLayout;
             int mCurrentFactor;
+            int mCurrentSecondaryFactor;
+            int mCurrentGridBottomRowFactor;
+            int mCurrentGridRightColumnFactor;
             try
             {
                 mCurrentLayout = mainWindowViewModel.DesktopMonitors[desktopMonitor.Key].Layout;
                 mCurrentFactor = mainWindowViewModel.DesktopMonitors[desktopMonitor.Key].Factor;
+                mCurrentSecondaryFactor = mainWindowViewModel.DesktopMonitors[desktopMonitor.Key].SecondaryFactor;
+                mCurrentGridBottomRowFactor = mainWindowViewModel.DesktopMonitors[desktopMonitor.Key].GridBottomRowFactor;
+                mCurrentGridRightColumnFactor = mainWindowViewModel.DesktopMonitors[desktopMonitor.Key].GridRightColumnFactor;
             }
             catch
             {
@@ -140,10 +146,23 @@ namespace AmethystWindows.DesktopWindowsManager
                     ));
                 mCurrentLayout = mainWindowViewModel.DesktopMonitors[desktopMonitor.Key].Layout;
                 mCurrentFactor = mainWindowViewModel.DesktopMonitors[desktopMonitor.Key].Factor;
+                mCurrentSecondaryFactor = mainWindowViewModel.DesktopMonitors[desktopMonitor.Key].SecondaryFactor;
+                mCurrentGridBottomRowFactor = mainWindowViewModel.DesktopMonitors[desktopMonitor.Key].GridBottomRowFactor;
+                mCurrentGridRightColumnFactor = mainWindowViewModel.DesktopMonitors[desktopMonitor.Key].GridRightColumnFactor;
             }
 
             IReadOnlyList<int> paneIndices = desktopMonitor.Value.Select(window => window.PaneIndex).ToList();
-            gridGenerator = GridGenerator(mWidth, mHeight, windowsCount, mCurrentFactor, mCurrentLayout, mainWindowViewModel.LayoutPadding, paneIndices);
+            gridGenerator = GridGenerator(
+                mWidth,
+                mHeight,
+                windowsCount,
+                mCurrentFactor,
+                mCurrentLayout,
+                mainWindowViewModel.LayoutPadding,
+                paneIndices,
+                mCurrentSecondaryFactor,
+                mCurrentGridBottomRowFactor,
+                mCurrentGridRightColumnFactor);
         }
 
         private HDWP DrawWindow(int mX, int mY, Rectangle adjustedSize, Tuple<int, DesktopWindow> w, HDWP hDWP)

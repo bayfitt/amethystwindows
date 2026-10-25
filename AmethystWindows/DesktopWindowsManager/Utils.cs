@@ -114,6 +114,12 @@ namespace AmethystWindows.DesktopWindowsManager
                 writer.WriteValue(desktopMonitor.Layout);
                 writer.WritePropertyName("Factor");
                 writer.WriteValue(desktopMonitor.Factor);
+                writer.WritePropertyName("SecondaryFactor");
+                writer.WriteValue(desktopMonitor.SecondaryFactor);
+                writer.WritePropertyName("GridBottomRowFactor");
+                writer.WriteValue(desktopMonitor.GridBottomRowFactor);
+                writer.WritePropertyName("GridRightColumnFactor");
+                writer.WriteValue(desktopMonitor.GridRightColumnFactor);
                 writer.WriteEndObject();
 
             }
@@ -133,6 +139,9 @@ namespace AmethystWindows.DesktopWindowsManager
                 {
                     Layout layout = (Layout)desktopMonitor.GetValue("Layout").Value<int>();
                     int factor = desktopMonitor.GetValue("Factor").Value<int>();
+                    int secondaryFactor = desktopMonitor.GetValue("SecondaryFactor")?.Value<int>() ?? 0;
+                    int gridBottomRowFactor = desktopMonitor.GetValue("GridBottomRowFactor")?.Value<int>() ?? 0;
+                    int gridRightColumnFactor = desktopMonitor.GetValue("GridRightColumnFactor")?.Value<int>() ?? 0;
 
                     Point point = new Point(desktopMonitor.GetValue("MonitorX").Value<int>() + 100, desktopMonitor.GetValue("MonitorY").Value<int>() + 100);
                     HMONITOR monitor = User32.MonitorFromPoint(point, User32.MonitorFlags.MONITOR_DEFAULTTONEAREST);
@@ -140,7 +149,14 @@ namespace AmethystWindows.DesktopWindowsManager
                     VirtualDesktop savedDesktop = VirtualDesktop.GetDesktops().First(vD => vD.Id.Equals(new Guid(desktopMonitor.GetValue("DesktopID").Value<string>())));
                     HMONITOR savedMonitor = monitor;
 
-                    list.Add(new ViewModelDesktopMonitor(monitor, savedDesktop, factor, layout));
+                    list.Add(new ViewModelDesktopMonitor(
+                        monitor,
+                        savedDesktop,
+                        factor,
+                        layout,
+                        secondaryFactor,
+                        gridBottomRowFactor,
+                        gridRightColumnFactor));
                 } catch
                 {
                     Debug.WriteLine("WARNING: something was wrong in reloading your settings. Most probably monitor or virtual desktop do not exist anymore.");

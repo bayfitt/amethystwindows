@@ -188,6 +188,212 @@ namespace AmethystWindows.DesktopWindowsManager
             newDesktopWindow.StackOrder = stackOrder;
         }
 
+        public bool TryAdjustSharedSplitFromResize(DesktopWindow oldDesktopWindow, DesktopWindow resizedDesktopWindow)
+        {
+            Pair<VirtualDesktop, HMONITOR> desktopMonitor = oldDesktopWindow.GetDesktopMonitor();
+            if (!desktopMonitor.Equals(resizedDesktopWindow.GetDesktopMonitor()) ||
+                !Windows.TryGetValue(desktopMonitor, out ObservableCollection<DesktopWindow> windows))
+            {
+                return false;
+            }
+
+            ViewModelDesktopMonitor monitor = mainWindowViewModel.DesktopMonitors.FirstOrDefault(item =>
+                item.Monitor.Equals(desktopMonitor.Value) && item.VirtualDesktop.Equals(desktopMonitor.Key));
+            if (monitor == null)
+            {
+                return false;
+            }
+
+            if (monitor.Layout == Layout.Tall)
+            {
+                return TryAdjustTallSplitFromResize(oldDesktopWindow, resizedDesktopWindow);
+            }
+
+            if (monitor.Layout != Layout.ThreeColumn && monitor.Layout != Layout.Grid2x2)
+            {
+                return false;
+            }
+
+            int[] occupiedPanes = windows.Select(window => window.PaneIndex).Distinct().OrderBy(pane => pane).ToArray();
+            int panePosition = Array.IndexOf(occupiedPanes, oldDesktopWindow.PaneIndex);
+            if (occupiedPanes.Length < 2 || panePosition < 0)
+            {
+                return false;
+            }
+
+            User32.MONITORINFO monitorInfo = new User32.MONITORINFO();
+            monitorInfo.cbSize = (uint)System.Runtime.InteropServices.Marshal.SizeOf(monitorInfo);
+            if (!User32.GetMonitorInfo(desktopMonitor.Value, ref monitorInfo))
+            {
+                return false;
+            }
+
+            int layoutX = monitorInfo.rcWork.X + mainWindowViewModel.MarginLeft;
+            int layoutY = monitorInfo.rcWork.Y + mainWindowViewModel.MarginTop;
+            int layoutWidth = monitorInfo.rcWork.Width - mainWindowViewModel.MarginLeft - mainWindowViewModel.MarginRight;
+            int layoutHeight = monitorInfo.rcWork.Height - mainWindowViewModel.MarginTop - mainWindowViewModel.MarginBottom;
+            int columns = monitor.Layout == Layout.ThreeColumn ? occupiedPanes.Length : Math.Min(2, occupiedPanes.Length);
+            int rows = monitor.Layout == Layout.Grid2x2 && occupiedPanes.Length > 2 ? 2 : 1;
+            int column = panePosition % columns;
+            int row = panePosition / columns;
+            Rectangle oldBounds = ToRectangle(oldDesktopWindow.Info.rcWindow);
+            Rectangle resizedBounds = ToRectangle(resizedDesktopWindow.Info.rcWindow);
+            bool adjusted = false;
+
+            if (monitor.Layout == Layout.ThreeColumn)
+            {
+                int minimumPaneWidth = GetMinimumPaneExtent(layoutWidth, columns);
+                int[] dividers = GetThreeColumnDividerPositions(
+                    layoutWidth,
+                    columns,
+                    monitor.Factor,
+                    monitor.SecondaryFactor,
+                    mainWindowViewModel.Step);
+
+                if (column > 0)
+                {
+                    int dividerIndex = column - 1;
+                    int previousDivider = dividerIndex == 0 ? 0 : dividers[dividerIndex - 1];
+                    int nextDivider = dividerIndex + 1 < dividers.Length ? dividers[dividerIndex + 1] : layoutWidth;
+                    int minimumSplit = previousDivider + minimumPaneWidth;
+                    int maximumSplit = nextDivider - minimumPaneWidth;
+                    int baseline = columns == 2 ? layoutWidth / 2 : (dividerIndex + 1) * layoutWidth / 3;
+                    if (TryCalculateSharedSplitFactor(
+                        oldBounds, resizedBounds, true, false, layoutX, layoutWidth, resizedDesktopWindow.BorderX,
+                        mainWindowViewModel.Padding, mainWindowViewModel.LayoutPadding, mainWindowViewModel.Step,
+                        baseline, minimumSplit, maximumSplit, out int factor))
+                    {
+                        if (dividerIndex == 0) monitor.Factor = factor;
+                        else monitor.SecondaryFactor = factor;
+                        adjusted = true;
+                    }
+                }
+
+                if (column < columns - 1)
+                {
+                    int dividerIndex = column;
+                    int previousDivider = dividerIndex == 0 ? 0 : dividers[dividerIndex - 1];
+                    int nextDivider = dividerIndex + 1 < dividers.Length ? dividers[dividerIndex + 1] : layoutWidth;
+                    int minimumSplit = previousDivider + minimumPaneWidth;
+                    int maximumSplit = nextDivider - minimumPaneWidth;
+                    int baseline = columns == 2 ? layoutWidth / 2 : (dividerIndex + 1) * layoutWidth / 3;
+                    if (TryCalculateSharedSplitFactor(
+                        oldBounds, resizedBounds, true, true, layoutX, layoutWidth, resizedDesktopWindow.BorderX,
+                        mainWindowViewModel.Padding, mainWindowViewModel.LayoutPadding, mainWindowViewModel.Step,
+                        baseline, minimumSplit, maximumSplit, out int factor))
+                    {
+                        if (dividerIndex == 0) monitor.Factor = factor;
+                        else monitor.SecondaryFactor = factor;
+                        adjusted = true;
+                    }
+                }
+            }
+            else
+            {
+                bool hasLeftNeighbor = column > 0;
+                bool hasRightNeighbor = column < columns - 1 && panePosition + 1 < occupiedPanes.Length && (panePosition + 1) / columns == row;
+                if (hasLeftNeighbor || hasRightNeighbor)
+                {
+                    int minimumPaneWidth = GetMinimumPaneExtent(layoutWidth, columns);
+                    if (TryCalculateSharedSplitFactor(
+                        oldBounds, resizedBounds, true, hasRightNeighbor, layoutX, layoutWidth, resizedDesktopWindow.BorderX,
+                        mainWindowViewModel.Padding, mainWindowViewModel.LayoutPadding, mainWindowViewModel.Step,
+                        layoutWidth / 2, minimumPaneWidth, layoutWidth - minimumPaneWidth, out int factor))
+                    {
+                        if (row == 0)
+                        {
+                            monitor.Factor = factor;
+                        }
+                        else
+                        {
+                            monitor.GridBottomRowFactor = factor;
+                        }
+                        adjusted = true;
+                    }
+                }
+
+                bool hasTopNeighbor = row > 0;
+                bool hasBottomNeighbor = row < rows - 1 && panePosition + columns < occupiedPanes.Length;
+                if (hasTopNeighbor || hasBottomNeighbor)
+                {
+                    int minimumPaneHeight = GetMinimumPaneExtent(layoutHeight, rows);
+                    if (TryCalculateSharedSplitFactor(
+                        oldBounds, resizedBounds, false, hasBottomNeighbor, layoutY, layoutHeight, resizedDesktopWindow.BorderY,
+                        mainWindowViewModel.Padding, mainWindowViewModel.LayoutPadding, mainWindowViewModel.Step,
+                        layoutHeight / 2, minimumPaneHeight, layoutHeight - minimumPaneHeight, out int factor))
+                    {
+                        if (column == 0)
+                        {
+                            monitor.SecondaryFactor = factor;
+                        }
+                        else
+                        {
+                            monitor.GridRightColumnFactor = factor;
+                        }
+                        adjusted = true;
+                    }
+                }
+            }
+
+            return adjusted;
+        }
+
+        internal static bool TryCalculateSharedSplitFactor(
+            Rectangle oldBounds,
+            Rectangle resizedBounds,
+            bool verticalDivider,
+            bool leadingPane,
+            int layoutStart,
+            int layoutLength,
+            int borderSize,
+            int padding,
+            int layoutPadding,
+            int step,
+            int baseline,
+            int minimumSplit,
+            int maximumSplit,
+            out int factor)
+        {
+            factor = 0;
+            if (layoutLength < 3 || step <= 0 || maximumSplit < minimumSplit)
+            {
+                return false;
+            }
+
+            const int edgeTolerance = 2;
+            int oldLeadingEdge = verticalDivider ? oldBounds.Left : oldBounds.Top;
+            int newLeadingEdge = verticalDivider ? resizedBounds.Left : resizedBounds.Top;
+            int oldTrailingEdge = verticalDivider ? oldBounds.Right : oldBounds.Bottom;
+            int newTrailingEdge = verticalDivider ? resizedBounds.Right : resizedBounds.Bottom;
+            int fixedEdgeChange = leadingPane
+                ? Math.Abs(newLeadingEdge - oldLeadingEdge)
+                : Math.Abs(newTrailingEdge - oldTrailingEdge);
+            int dividerEdgeChange = leadingPane
+                ? Math.Abs(newTrailingEdge - oldTrailingEdge)
+                : Math.Abs(newLeadingEdge - oldLeadingEdge);
+            if (fixedEdgeChange > edgeTolerance || dividerEdgeChange <= edgeTolerance)
+            {
+                return false;
+            }
+
+            int resizedDividerEdge = leadingPane ? newTrailingEdge : newLeadingEdge;
+            int desiredSplit = leadingPane
+                ? resizedDividerEdge - layoutStart - borderSize / 2 + padding + layoutPadding
+                : resizedDividerEdge - layoutStart + borderSize / 2 - padding;
+
+            desiredSplit = Math.Clamp(desiredSplit, minimumSplit, maximumSplit);
+            int minimumFactor = (int)Math.Ceiling((minimumSplit - baseline) / (double)step);
+            int maximumFactor = (int)Math.Floor((maximumSplit - baseline) / (double)step);
+            if (maximumFactor < minimumFactor)
+            {
+                return false;
+            }
+
+            factor = (int)Math.Round((desiredSplit - baseline) / (double)step, MidpointRounding.AwayFromZero);
+            factor = Math.Clamp(factor, minimumFactor, maximumFactor);
+            return true;
+        }
+
         public bool TryAdjustTallSplitFromResize(DesktopWindow oldDesktopWindow, DesktopWindow resizedDesktopWindow)
         {
             Pair<VirtualDesktop, HMONITOR> desktopMonitor = oldDesktopWindow.GetDesktopMonitor();

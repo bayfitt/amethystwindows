@@ -133,10 +133,10 @@ namespace AmethystWindows.DesktopWindowsManager
                                 {
                                     DesktopWindowsManager.RepositionWindow(moved, newMoved);
                                 }
-                                else if (!DesktopWindowsManager.TryAdjustTallSplitFromResize(moved, newMoved))
+                                else if (!DesktopWindowsManager.TryAdjustSharedSplitFromResize(moved, newMoved))
                                 {
-                                    // Reapply the active layout after a move or a resize away from
-                                    // the shared Tall divider. Monocle therefore remains full-screen.
+                                    // Reapply the active layout after moving a window or resizing an
+                                    // outer edge. Shared dividers update their saved split positions.
                                     DesktopWindowsManager.Draw(oldDesktopMonitor);
                                 }
                             }

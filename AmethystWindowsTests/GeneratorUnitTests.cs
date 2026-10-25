@@ -28,6 +28,44 @@ namespace AmethystWindowsTests
         }
 
         [Fact]
+        public void EnteringGridClockwiseResetsEveryDividerToAnEvenSplit()
+        {
+            ViewModelDesktopMonitor monitor = new ViewModelDesktopMonitor(
+                default,
+                null!,
+                8,
+                Layout.ThreeColumn,
+                secondaryFactor: -4,
+                gridBottomRowFactor: 3,
+                gridRightColumnFactor: -2);
+
+            Assert.Equal(Layout.Grid2x2, monitor.RotateLayoutClockwise());
+            Assert.Equal(0, monitor.Factor);
+            Assert.Equal(0, monitor.SecondaryFactor);
+            Assert.Equal(0, monitor.GridBottomRowFactor);
+            Assert.Equal(0, monitor.GridRightColumnFactor);
+        }
+
+        [Fact]
+        public void EnteringGridCounterClockwiseResetsEveryDividerToAnEvenSplit()
+        {
+            ViewModelDesktopMonitor monitor = new ViewModelDesktopMonitor(
+                default,
+                null!,
+                -5,
+                Layout.Monocle,
+                secondaryFactor: 6,
+                gridBottomRowFactor: -3,
+                gridRightColumnFactor: 4);
+
+            Assert.Equal(Layout.Grid2x2, monitor.RotateLayoutCounterClockwise());
+            Assert.Equal(0, monitor.Factor);
+            Assert.Equal(0, monitor.SecondaryFactor);
+            Assert.Equal(0, monitor.GridBottomRowFactor);
+            Assert.Equal(0, monitor.GridRightColumnFactor);
+        }
+
+        [Fact]
         public void TallFillsTheWorkAreaWhenOneWindowRemainsInTheSecondPane()
         {
             Rectangle[] rectangles = desktopWindowsManager.GridGenerator(
@@ -94,6 +132,45 @@ namespace AmethystWindowsTests
             Assert.Equal(new Rectangle(0, 400, 600, 400), rectangles[2]);
             Assert.Equal(new Rectangle(600, 400, 600, 400), rectangles[3]);
             Assert.Equal(rectangles[1], rectangles[4]);
+        }
+
+        [Fact]
+        public void ThreeColumnLayoutAppliesBothVerticalDividerFactors()
+        {
+            Rectangle[] rectangles = desktopWindowsManager.GridGenerator(
+                1200,
+                800,
+                3,
+                2,
+                Layout.ThreeColumn,
+                0,
+                new[] { 0, 1, 2 },
+                -1).ToArray();
+
+            Assert.Equal(new Rectangle(0, 0, 450, 800), rectangles[0]);
+            Assert.Equal(new Rectangle(450, 0, 325, 800), rectangles[1]);
+            Assert.Equal(new Rectangle(775, 0, 425, 800), rectangles[2]);
+        }
+
+        [Fact]
+        public void TwoByTwoLayoutKeepsEachRowAndColumnDividerIndependent()
+        {
+            Rectangle[] rectangles = desktopWindowsManager.GridGenerator(
+                1200,
+                800,
+                4,
+                2,
+                Layout.Grid2x2,
+                0,
+                new[] { 0, 1, 2, 3 },
+                -2,
+                -1,
+                1).ToArray();
+
+            Assert.Equal(new Rectangle(0, 0, 650, 350), rectangles[0]);
+            Assert.Equal(new Rectangle(650, 0, 550, 425), rectangles[1]);
+            Assert.Equal(new Rectangle(0, 350, 575, 450), rectangles[2]);
+            Assert.Equal(new Rectangle(575, 425, 625, 375), rectangles[3]);
         }
 
         [Fact]
@@ -198,6 +275,108 @@ namespace AmethystWindowsTests
                 2,
                 4,
                 25,
+                out _);
+
+            Assert.False(adjusted);
+        }
+
+        [Fact]
+        public void ResizingEitherSideOfAThreeColumnDividerChangesItsFactor()
+        {
+            bool leadingPaneAdjusted = DesktopWindowsManager.TryCalculateSharedSplitFactor(
+                new Rectangle(0, 0, 398, 800),
+                new Rectangle(0, 0, 498, 800),
+                true,
+                true,
+                0,
+                1200,
+                8,
+                2,
+                4,
+                25,
+                400,
+                120,
+                680,
+                out int leadingFactor);
+            bool followingPaneAdjusted = DesktopWindowsManager.TryCalculateSharedSplitFactor(
+                new Rectangle(398, 0, 802, 800),
+                new Rectangle(498, 0, 702, 800),
+                true,
+                false,
+                0,
+                1200,
+                8,
+                2,
+                4,
+                25,
+                400,
+                120,
+                680,
+                out int followingFactor);
+
+            Assert.True(leadingPaneAdjusted);
+            Assert.True(followingPaneAdjusted);
+            Assert.Equal(4, leadingFactor);
+            Assert.Equal(4, followingFactor);
+        }
+
+        [Fact]
+        public void ResizingEitherSideOfGridHorizontalDividerChangesItsFactor()
+        {
+            bool topPaneAdjusted = DesktopWindowsManager.TryCalculateSharedSplitFactor(
+                new Rectangle(0, 0, 600, 398),
+                new Rectangle(0, 0, 600, 448),
+                false,
+                true,
+                0,
+                800,
+                8,
+                2,
+                4,
+                25,
+                400,
+                120,
+                680,
+                out int topFactor);
+            bool bottomPaneAdjusted = DesktopWindowsManager.TryCalculateSharedSplitFactor(
+                new Rectangle(0, 402, 600, 398),
+                new Rectangle(0, 452, 600, 348),
+                false,
+                false,
+                0,
+                800,
+                8,
+                2,
+                4,
+                25,
+                400,
+                120,
+                680,
+                out int bottomFactor);
+
+            Assert.True(topPaneAdjusted);
+            Assert.True(bottomPaneAdjusted);
+            Assert.Equal(2, topFactor);
+            Assert.Equal(2, bottomFactor);
+        }
+
+        [Fact]
+        public void ResizingGridOuterEdgeDoesNotChangeEitherSplitFactor()
+        {
+            bool adjusted = DesktopWindowsManager.TryCalculateSharedSplitFactor(
+                new Rectangle(0, 0, 600, 400),
+                new Rectangle(-50, 0, 650, 400),
+                true,
+                true,
+                0,
+                1200,
+                8,
+                2,
+                4,
+                25,
+                600,
+                120,
+                1080,
                 out _);
 
             Assert.False(adjusted);

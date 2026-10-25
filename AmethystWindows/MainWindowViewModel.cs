@@ -327,6 +327,24 @@ namespace AmethystWindows
             set => SetProperty(ref _desktopMonitors, value);
         }
 
+        public ViewModelDesktopMonitor GetOrCreateDesktopMonitor(Pair<VirtualDesktop, HMONITOR> desktopMonitor)
+        {
+            ViewModelDesktopMonitor? existing = DesktopMonitors.FirstOrDefault(item =>
+                item.Monitor.Equals(desktopMonitor.Value) && item.VirtualDesktop.Equals(desktopMonitor.Key));
+            if (existing != null)
+            {
+                return existing;
+            }
+
+            ViewModelDesktopMonitor created = new ViewModelDesktopMonitor(
+                desktopMonitor.Value,
+                desktopMonitor.Key,
+                0,
+                Layout.Tall);
+            DesktopMonitors.Add(created);
+            return created;
+        }
+
         public ObservableHotkeys Hotkeys
         {
             get => _hotkeys;
@@ -461,6 +479,9 @@ namespace AmethystWindows
         private HMONITOR _monitor;
         private VirtualDesktop _virtualDesktop;
         private int _factor;
+        private int _secondaryFactor;
+        private int _gridBottomRowFactor;
+        private int _gridRightColumnFactor;
         private Layout _layout;
         public HMONITOR Monitor { 
             get => _monitor;
@@ -490,6 +511,36 @@ namespace AmethystWindows
                 PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Factor)));
             }
         }
+        public int SecondaryFactor
+        {
+            get => _secondaryFactor;
+
+            set
+            {
+                _secondaryFactor = value;
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(SecondaryFactor)));
+            }
+        }
+        public int GridBottomRowFactor
+        {
+            get => _gridBottomRowFactor;
+
+            set
+            {
+                _gridBottomRowFactor = value;
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(GridBottomRowFactor)));
+            }
+        }
+        public int GridRightColumnFactor
+        {
+            get => _gridRightColumnFactor;
+
+            set
+            {
+                _gridRightColumnFactor = value;
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(GridRightColumnFactor)));
+            }
+        }
         public Layout Layout
         {
             get => _layout;
@@ -503,11 +554,21 @@ namespace AmethystWindows
             }
         }
 
-        public ViewModelDesktopMonitor(HMONITOR monitor, VirtualDesktop virtualDesktop, int factor, Layout layout)
+        public ViewModelDesktopMonitor(
+            HMONITOR monitor,
+            VirtualDesktop virtualDesktop,
+            int factor,
+            Layout layout,
+            int secondaryFactor = 0,
+            int gridBottomRowFactor = 0,
+            int gridRightColumnFactor = 0)
         {
             Monitor = monitor;
             VirtualDesktop = virtualDesktop;
             Factor = factor;
+            SecondaryFactor = secondaryFactor;
+            GridBottomRowFactor = gridBottomRowFactor;
+            GridRightColumnFactor = gridRightColumnFactor;
             Layout = layout;
         }
 
@@ -525,14 +586,27 @@ namespace AmethystWindows
 
         public Layout RotateLayoutClockwise()
         {
-            Layout = NextLayout(Layout, true);
+            SetLayout(NextLayout(Layout, true));
             return Layout;
         }
 
         public Layout RotateLayoutCounterClockwise()
         {
-            Layout = NextLayout(Layout, false);
+            SetLayout(NextLayout(Layout, false));
             return Layout;
+        }
+
+        private void SetLayout(Layout layout)
+        {
+            if (layout == Layout.Grid2x2)
+            {
+                Factor = 0;
+                SecondaryFactor = 0;
+                GridBottomRowFactor = 0;
+                GridRightColumnFactor = 0;
+            }
+
+            Layout = layout;
         }
 
         internal static Layout NextLayout(Layout currentLayout, bool clockwise)
@@ -554,12 +628,15 @@ namespace AmethystWindows
                    EqualityComparer<HMONITOR>.Default.Equals(Monitor, monitor.Monitor) &&
                    EqualityComparer<VirtualDesktop>.Default.Equals(VirtualDesktop, monitor.VirtualDesktop) &&
                    Factor == monitor.Factor &&
+                   SecondaryFactor == monitor.SecondaryFactor &&
+                   GridBottomRowFactor == monitor.GridBottomRowFactor &&
+                   GridRightColumnFactor == monitor.GridRightColumnFactor &&
                    Layout == monitor.Layout;
         }
 
         public override int GetHashCode()
         {
-            return HashCode.Combine(Monitor, VirtualDesktop, Factor, Layout);
+            return HashCode.Combine(Monitor, VirtualDesktop, Factor, SecondaryFactor, GridBottomRowFactor, GridRightColumnFactor, Layout);
         }
 
         public Pair<VirtualDesktop, HMONITOR> getPair()
@@ -633,19 +710,26 @@ namespace AmethystWindows
 
         private void ObservableDesktopMonitors_CollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
         {
-            if (e.NewItems != null)
+            if (e.Action == NotifyCollectionChangedAction.Add && e.NewItems != null)
             {
                 foreach (Object item in e.NewItems)
                 {
                     ((INotifyPropertyChanged)item).PropertyChanged += ItemPropertyChanged;
                 }
             }
-            if (e.OldItems != null)
+            else if (e.Action == NotifyCollectionChangedAction.Remove && e.OldItems != null)
             {
                 foreach (Object item in e.OldItems)
                 {
                     ((INotifyPropertyChanged)item).PropertyChanged -= ItemPropertyChanged;
                 }
+            }
+            else if (e.Action == NotifyCollectionChangedAction.Replace &&
+                     e.OldItems != null && e.NewItems != null &&
+                     !ReferenceEquals(e.OldItems[0], e.NewItems[0]))
+            {
+                ((INotifyPropertyChanged)e.OldItems[0]).PropertyChanged -= ItemPropertyChanged;
+                ((INotifyPropertyChanged)e.NewItems[0]).PropertyChanged += ItemPropertyChanged;
             }
         }
 

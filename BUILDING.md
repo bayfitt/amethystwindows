@@ -35,7 +35,7 @@ if ($machine -ne 0xAA64) { throw ('Expected ARM64 PE machine 0xAA64, found 0x{0:
 
 ## Layout modes
 
-The default `Alt+Shift+Space` shortcut cycles clockwise through Full Screen, Tall, Three Columns, and 2 × 2 Grid. `Alt+Shift+Win+Space` cycles in reverse. Each change displays a brief on-screen label. Layout geometry, slot stacking, four-mode cycling, and Tall pane-resize behavior are covered by the test project.
+The default `Alt+Shift+Space` shortcut cycles clockwise through Full Screen, Tall, Three Columns, and 2 × 2 Grid. `Alt+Shift+Win+Space` cycles in reverse. The layout changes only on the monitor under the mouse pointer, and each change displays a brief on-screen label. Entering 2 × 2 Grid resets all dividers to even splits. The grid's vertical divider can be resized independently in each row, and its horizontal divider can be resized independently in each column. Layout geometry, slot stacking, divider calculations, and four-mode cycling are covered by the test project.
 
 ## Windows 11 virtual desktop dependency
 

@@ -32,14 +32,7 @@ namespace AmethystWindows
             {
                 if (wParam.ToInt32() == 0x11)
                 {
-                    HMONITOR currentMonitor = User32.MonitorFromWindow(User32.GetForegroundWindow(), User32.MonitorFlags.MONITOR_DEFAULTTONEAREST);
-                    VirtualDesktop currentDesktop = VirtualDesktop.Current;
-                    Pair<VirtualDesktop, HMONITOR> currentPair = new Pair<VirtualDesktop, HMONITOR>(currentDesktop, currentMonitor);
-                    ViewModelDesktopMonitor viewModelDesktopMonitor = mainWindowViewModel.DesktopMonitors[currentPair];
-                    Layout layout = viewModelDesktopMonitor.RotateLayoutClockwise();
-                    App.DWM.ReassignWindowsToLayout(currentPair, layout);
-                    ShowLayoutNotification(layout);
-                    //string desktopLabel = string.IsNullOrEmpty(currentPair.Key.Name) ? $"Desktop {currentPair.Key.Id}" : currentPair.Key.Name;
+                    ChangeLayoutAtPointer(clockwise: true);
                 }
                 if (wParam.ToInt32() == 0x12)
                 {
@@ -101,15 +94,7 @@ namespace AmethystWindows
                 }
                 if (wParam.ToInt32() == 0x21)
                 {
-                    HMONITOR currentMonitor = User32.MonitorFromWindow(User32.GetForegroundWindow(), User32.MonitorFlags.MONITOR_DEFAULTTONEAREST);
-                    VirtualDesktop currentDesktop = VirtualDesktop.Current;
-                    Pair<VirtualDesktop, HMONITOR> currentPair = new Pair<VirtualDesktop, HMONITOR>(currentDesktop, currentMonitor);
-                    ViewModelDesktopMonitor viewModelDesktopMonitor = mainWindowViewModel.DesktopMonitors[currentPair];
-                    Layout layout = viewModelDesktopMonitor.RotateLayoutCounterClockwise();
-                    App.DWM.ReassignWindowsToLayout(currentPair, layout);
-                    ShowLayoutNotification(layout);
-                    //string desktopLabel = string.IsNullOrEmpty(currentPair.Key.Name) ? $"Desktop {currentPair.Key.Id}" : currentPair.Key.Name;
-                    //mainWindowViewModel.Notify(desktopLabel, viewModelDesktopMonitor.Layout.ToString(), 100);
+                    ChangeLayoutAtPointer(clockwise: false);
 
                 }
                 if (wParam.ToInt32() == 0x22)
@@ -175,6 +160,20 @@ namespace AmethystWindows
                 }
             };
             layoutNotificationWindow.Show();
+        }
+
+        private void ChangeLayoutAtPointer(bool clockwise)
+        {
+            System.Drawing.Point cursorPosition = System.Windows.Forms.Cursor.Position;
+            HMONITOR currentMonitor = User32.MonitorFromPoint(cursorPosition, User32.MonitorFlags.MONITOR_DEFAULTTONEAREST);
+            Pair<VirtualDesktop, HMONITOR> currentPair = new Pair<VirtualDesktop, HMONITOR>(VirtualDesktop.Current, currentMonitor);
+            ViewModelDesktopMonitor viewModelDesktopMonitor = mainWindowViewModel.GetOrCreateDesktopMonitor(currentPair);
+            Layout layout = clockwise
+                ? viewModelDesktopMonitor.RotateLayoutClockwise()
+                : viewModelDesktopMonitor.RotateLayoutCounterClockwise();
+
+            App.DWM.ReassignWindowsToLayout(currentPair, layout);
+            ShowLayoutNotification(layout);
         }
     }
 }
