@@ -13,6 +13,92 @@ namespace AmethystWindowsTests
         Layout layout;
 
         [Fact]
+        public void TallUsesOnlyTheAssignedTwoPaneSlots()
+        {
+            int[] panes = { 0, 1, 1, 0, 1 };
+            Rectangle[] rectangles = desktopWindowsManager.GridGenerator(1000, 1000, panes.Length, 0, Layout.Tall, 0, panes).ToArray();
+
+            Assert.Equal(new Rectangle(0, 0, 500, 1000), rectangles[0]);
+            Assert.Equal(new Rectangle(500, 0, 500, 1000), rectangles[1]);
+            Assert.Equal(rectangles[1], rectangles[2]);
+            Assert.Equal(rectangles[0], rectangles[3]);
+            Assert.Equal(rectangles[1], rectangles[4]);
+            Assert.Equal(2, rectangles.Distinct().Count());
+        }
+
+        [Fact]
+        public void TallFillsTheWorkAreaWhenOneWindowRemainsInTheSecondPane()
+        {
+            Rectangle[] rectangles = desktopWindowsManager.GridGenerator(
+                1000,
+                800,
+                1,
+                0,
+                Layout.Tall,
+                0,
+                new[] { 1 }).ToArray();
+
+            Assert.Single(rectangles);
+            Assert.Equal(new Rectangle(0, 0, 1000, 800), rectangles[0]);
+        }
+
+        [Fact]
+        public void ResizingTallMasterPaneUpdatesTheSharedSplit()
+        {
+            bool adjusted = DesktopWindowsManager.TryCalculateTallSplitFactor(
+                new Rectangle(0, 0, 502, 1000),
+                new Rectangle(0, 0, 652, 1000),
+                0,
+                0,
+                1000,
+                8,
+                2,
+                4,
+                25,
+                out int factor);
+
+            Assert.True(adjusted);
+            Assert.Equal(6, factor);
+        }
+
+        [Fact]
+        public void ResizingTallStackPaneMovesTheSameSharedSplit()
+        {
+            bool adjusted = DesktopWindowsManager.TryCalculateTallSplitFactor(
+                new Rectangle(502, 0, 498, 1000),
+                new Rectangle(602, 0, 398, 1000),
+                1,
+                0,
+                1000,
+                8,
+                2,
+                4,
+                25,
+                out int factor);
+
+            Assert.True(adjusted);
+            Assert.Equal(4, factor);
+        }
+
+        [Fact]
+        public void ResizingAnOuterEdgeDoesNotChangeTheTallSplit()
+        {
+            bool adjusted = DesktopWindowsManager.TryCalculateTallSplitFactor(
+                new Rectangle(502, 0, 498, 1000),
+                new Rectangle(502, 0, 448, 1000),
+                1,
+                0,
+                1000,
+                8,
+                2,
+                4,
+                25,
+                out _);
+
+            Assert.False(adjusted);
+        }
+
+        [Fact]
         public void GridGeneratorCountOne()
         {
             layout = Layout.Horizontal;
@@ -127,8 +213,8 @@ namespace AmethystWindowsTests
             layout = Layout.Tall;
             gridGenerator = desktopWindowsManager.GridGenerator(1000, 1000, 3, 0, layout, 0);
             Assert.Equal<Rectangle>(gridGenerator.ToArray()[0], new Rectangle(0, 0, 500, 1000));
-            Assert.Equal<Rectangle>(gridGenerator.ToArray()[1], new Rectangle(500, 0, 500, 500));
-            Assert.Equal<Rectangle>(gridGenerator.ToArray()[2], new Rectangle(500, 500, 500, 500));
+            Assert.Equal<Rectangle>(gridGenerator.ToArray()[1], new Rectangle(500, 0, 500, 1000));
+            Assert.Equal<Rectangle>(gridGenerator.ToArray()[2], new Rectangle(500, 0, 500, 1000));
             Assert.Throws<IndexOutOfRangeException>(() => gridGenerator.ToArray()[3]);
         }
 
@@ -180,9 +266,9 @@ namespace AmethystWindowsTests
             layout = Layout.Tall;
             gridGenerator = desktopWindowsManager.GridGenerator(1000, 1000, 4, 0, layout, 0);
             Assert.Equal<Rectangle>(gridGenerator.ToArray()[0], new Rectangle(0, 0, 500, 1000));
-            Assert.Equal<Rectangle>(gridGenerator.ToArray()[1], new Rectangle(500, 0, 500, 333));
-            Assert.Equal<Rectangle>(gridGenerator.ToArray()[2], new Rectangle(500, 333, 500, 333));
-            Assert.Equal<Rectangle>(gridGenerator.ToArray()[3], new Rectangle(500, 666, 500, 333));
+            Assert.Equal<Rectangle>(gridGenerator.ToArray()[1], new Rectangle(500, 0, 500, 1000));
+            Assert.Equal<Rectangle>(gridGenerator.ToArray()[2], new Rectangle(500, 0, 500, 1000));
+            Assert.Equal<Rectangle>(gridGenerator.ToArray()[3], new Rectangle(500, 0, 500, 1000));
             Assert.Throws<IndexOutOfRangeException>(() => gridGenerator.ToArray()[4]);
         }
 
@@ -232,10 +318,10 @@ namespace AmethystWindowsTests
             layout = Layout.Tall;
             gridGenerator = desktopWindowsManager.GridGenerator(1000, 1000, 5, 0, layout, 0);
             Assert.Equal<Rectangle>(gridGenerator.ToArray()[0], new Rectangle(0, 0, 500, 1000));
-            Assert.Equal<Rectangle>(gridGenerator.ToArray()[1], new Rectangle(500, 0, 500, 250));
-            Assert.Equal<Rectangle>(gridGenerator.ToArray()[2], new Rectangle(500, 250, 500, 250));
-            Assert.Equal<Rectangle>(gridGenerator.ToArray()[3], new Rectangle(500, 500, 500, 250));
-            Assert.Equal<Rectangle>(gridGenerator.ToArray()[4], new Rectangle(500, 750, 500, 250));
+            Assert.Equal<Rectangle>(gridGenerator.ToArray()[1], new Rectangle(500, 0, 500, 1000));
+            Assert.Equal<Rectangle>(gridGenerator.ToArray()[2], new Rectangle(500, 0, 500, 1000));
+            Assert.Equal<Rectangle>(gridGenerator.ToArray()[3], new Rectangle(500, 0, 500, 1000));
+            Assert.Equal<Rectangle>(gridGenerator.ToArray()[4], new Rectangle(500, 0, 500, 1000));
             Assert.Throws<IndexOutOfRangeException>(() => gridGenerator.ToArray()[5]);
         }
 

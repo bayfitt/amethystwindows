@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
+using System.Drawing;
 using System.Linq;
 using Vanara.PInvoke;
 using WindowsDesktop;
@@ -10,44 +11,224 @@ namespace AmethystWindows.DesktopWindowsManager
 {
     partial class DesktopWindowsManager
     {
-        public void AddWindow(DesktopWindow desktopWindow)
+        public void AddWindow(DesktopWindow desktopWindow, bool makeActive = true)
         {
             Pair<string, string> configurableFilter = mainWindowViewModel.ConfigurableFilters.FirstOrDefault(f => f.Key == desktopWindow.AppName);
+            Pair<VirtualDesktop, HMONITOR> key = desktopWindow.GetDesktopMonitor();
 
-            if (!Windows.ContainsKey(desktopWindow.GetDesktopMonitor()) && !WindowsSubscribed.ContainsKey(desktopWindow.GetDesktopMonitor()))
+            if (!Windows.ContainsKey(key) && !WindowsSubscribed.ContainsKey(key))
             {
-                WindowsSubscribed.Add(desktopWindow.GetDesktopMonitor(), false);
-                Windows.Add(desktopWindow.GetDesktopMonitor(), new ObservableCollection<DesktopWindow>());
-                SubscribeWindowsCollectionChanged(desktopWindow.GetDesktopMonitor(), true);
+                WindowsSubscribed.Add(key, false);
+                Windows.Add(key, new ObservableCollection<DesktopWindow>());
+                SubscribeWindowsCollectionChanged(key, true);
             }
 
             if (FixedFilters.All(s => !desktopWindow.AppName.StartsWith(s)) 
                 && desktopWindow.AppName != String.Empty &&
-                !Windows[desktopWindow.GetDesktopMonitor()].Contains(desktopWindow))
+                !Windows[key].Contains(desktopWindow))
             { 
                 if (configurableFilter.Equals(null))
                 {
-                    Windows[desktopWindow.GetDesktopMonitor()].Insert(0, desktopWindow);
+                    AddWindowToPane(desktopWindow, null, makeActive);
                 }
                 else
                 {
                     if (configurableFilter.Value != "*" && configurableFilter.Value != desktopWindow.ClassName)
                     {
-                        Windows[desktopWindow.GetDesktopMonitor()].Insert(0, desktopWindow);
+                        AddWindowToPane(desktopWindow, null, makeActive);
                     }
                 }
+            }
+            else if (Windows.ContainsKey(key) && Windows[key].Contains(desktopWindow) && makeActive)
+            {
+                ActivePaneIndices[key] = desktopWindow.PaneIndex;
+            }
+        }
+
+        private void AddWindowToPane(DesktopWindow desktopWindow, int? requestedPane, bool makeActive)
+        {
+            Pair<VirtualDesktop, HMONITOR> key = desktopWindow.GetDesktopMonitor();
+            if (!Windows.ContainsKey(key))
+            {
+                Windows[key] = new ObservableCollection<DesktopWindow>();
+                WindowsSubscribed[key] = false;
+                SubscribeWindowsCollectionChanged(key, true);
+            }
+            ObservableCollection<DesktopWindow> windows = Windows[key];
+            int activePane = ActivePaneIndices.TryGetValue(key, out int currentPane) ? currentPane : 0;
+            int pane = requestedPane ?? (windows.Count == 0 ? 0 : 1 - activePane);
+
+            foreach (DesktopWindow existing in windows.Where(window => window.PaneIndex == pane))
+            {
+                existing.StackOrder++;
+            }
+
+            desktopWindow.PaneIndex = pane;
+            desktopWindow.StackOrder = 0;
+            windows.Add(desktopWindow);
+            if (makeActive || windows.Count == 1)
+            {
+                ActivePaneIndices[key] = pane;
+            }
+        }
+
+        public void ActivateWindow(DesktopWindow desktopWindow)
+        {
+            DesktopWindow existing = FindWindow(desktopWindow.Window);
+            if (existing != null)
+            {
+                ActivePaneIndices[existing.GetDesktopMonitor()] = existing.PaneIndex;
+            }
+            else
+            {
+                AddWindow(desktopWindow);
             }
         }
 
         public void RemoveWindow(DesktopWindow desktopWindow)
         {
-            Windows[desktopWindow.GetDesktopMonitor()].Remove(desktopWindow);
+            Pair<VirtualDesktop, HMONITOR> key = desktopWindow.GetDesktopMonitor();
+            if (!Windows.ContainsKey(key)) return;
+
+            ObservableCollection<DesktopWindow> windows = Windows[key];
+            if (!windows.Remove(desktopWindow)) return;
+
+            if (windows.Count == 0)
+            {
+                ActivePaneIndices.Remove(key);
+                return;
+            }
+
+            if (windows.Count == 1)
+            {
+                // A Tall layout with one managed window occupies the whole work area.
+                // Normalize the surviving slot too, so the next window opens in the other pane.
+                windows[0].PaneIndex = 0;
+                windows[0].StackOrder = 0;
+                ActivePaneIndices[key] = 0;
+            }
+            else if (!windows.Any(window => window.PaneIndex == ActivePaneIndices.GetValueOrDefault(key)))
+            {
+                DesktopWindow foreground = windows.FirstOrDefault(window => window.Window == User32.GetForegroundWindow());
+                ActivePaneIndices[key] = foreground?.PaneIndex ?? windows.FirstOrDefault()?.PaneIndex ?? 0;
+            }
+
+            // Window destruction/hide events must immediately reflow the remaining pane.
+            Draw(key);
         }
 
         public void RepositionWindow(DesktopWindow oldDesktopWindow, DesktopWindow newDesktopWindow)
         {
+            int pane = oldDesktopWindow.PaneIndex;
+            int stackOrder = oldDesktopWindow.StackOrder;
             RemoveWindow(oldDesktopWindow);
-            AddWindow(newDesktopWindow);
+            AddWindowToPane(newDesktopWindow, pane, newDesktopWindow.Window == User32.GetForegroundWindow());
+            newDesktopWindow.StackOrder = stackOrder;
+        }
+
+        public bool TryAdjustTallSplitFromResize(DesktopWindow oldDesktopWindow, DesktopWindow resizedDesktopWindow)
+        {
+            Pair<VirtualDesktop, HMONITOR> desktopMonitor = oldDesktopWindow.GetDesktopMonitor();
+            if (!desktopMonitor.Equals(resizedDesktopWindow.GetDesktopMonitor()) ||
+                !Windows.TryGetValue(desktopMonitor, out ObservableCollection<DesktopWindow> windows) ||
+                !windows.Any(window => window.PaneIndex == 0) ||
+                !windows.Any(window => window.PaneIndex == 1))
+            {
+                return false;
+            }
+
+            ViewModelDesktopMonitor monitor = mainWindowViewModel.DesktopMonitors.FirstOrDefault(item =>
+                item.Monitor.Equals(desktopMonitor.Value) && item.VirtualDesktop.Equals(desktopMonitor.Key));
+            if (monitor == null || monitor.Layout != Layout.Tall)
+            {
+                return false;
+            }
+
+            User32.MONITORINFO monitorInfo = new User32.MONITORINFO();
+            monitorInfo.cbSize = (uint)System.Runtime.InteropServices.Marshal.SizeOf(monitorInfo);
+            if (!User32.GetMonitorInfo(desktopMonitor.Value, ref monitorInfo))
+            {
+                return false;
+            }
+
+            int layoutX = monitorInfo.rcWork.X + mainWindowViewModel.MarginLeft;
+            int layoutWidth = monitorInfo.rcWork.Width - mainWindowViewModel.MarginLeft - mainWindowViewModel.MarginRight;
+            Rectangle oldBounds = ToRectangle(oldDesktopWindow.Info.rcWindow);
+            Rectangle resizedBounds = ToRectangle(resizedDesktopWindow.Info.rcWindow);
+
+            if (!TryCalculateTallSplitFactor(
+                oldBounds,
+                resizedBounds,
+                oldDesktopWindow.PaneIndex,
+                layoutX,
+                layoutWidth,
+                resizedDesktopWindow.BorderX,
+                mainWindowViewModel.Padding,
+                mainWindowViewModel.LayoutPadding,
+                mainWindowViewModel.Step,
+                out int factor))
+            {
+                return false;
+            }
+
+            // Setting even the current value requests a redraw, snapping the divider to the
+            // nearest configured step when the user's drag was smaller than one step.
+            monitor.Factor = factor;
+            return true;
+        }
+
+        internal static bool TryCalculateTallSplitFactor(
+            Rectangle oldBounds,
+            Rectangle resizedBounds,
+            int paneIndex,
+            int layoutX,
+            int layoutWidth,
+            int borderX,
+            int padding,
+            int layoutPadding,
+            int step,
+            out int factor)
+        {
+            factor = 0;
+            if (layoutWidth < 3 || step <= 0)
+            {
+                return false;
+            }
+
+            const int edgeTolerance = 2;
+            int desiredMasterWidth;
+            if (paneIndex == 0 &&
+                Math.Abs(resizedBounds.Left - oldBounds.Left) <= edgeTolerance &&
+                Math.Abs(resizedBounds.Right - oldBounds.Right) > edgeTolerance)
+            {
+                desiredMasterWidth = resizedBounds.Right - layoutX - borderX / 2 + padding;
+            }
+            else if (paneIndex == 1 &&
+                Math.Abs(resizedBounds.Right - oldBounds.Right) <= edgeTolerance &&
+                Math.Abs(resizedBounds.Left - oldBounds.Left) > edgeTolerance)
+            {
+                desiredMasterWidth = resizedBounds.Left - layoutX + borderX / 2 - padding - layoutPadding;
+            }
+            else
+            {
+                return false;
+            }
+
+            int minimumPaneWidth = Math.Min(120, Math.Max(1, layoutWidth / 4));
+            desiredMasterWidth = Math.Clamp(desiredMasterWidth, minimumPaneWidth, layoutWidth - minimumPaneWidth);
+            factor = (int)Math.Round(
+                (desiredMasterWidth - layoutWidth / 2.0) / step,
+                MidpointRounding.AwayFromZero);
+
+            int minimumFactor = (int)Math.Ceiling((minimumPaneWidth - layoutWidth / 2.0) / step);
+            int maximumFactor = (int)Math.Floor((layoutWidth - minimumPaneWidth - layoutWidth / 2.0) / step);
+            factor = Math.Clamp(factor, minimumFactor, maximumFactor);
+            return true;
+        }
+
+        private static Rectangle ToRectangle(Vanara.PInvoke.RECT bounds)
+        {
+            return new Rectangle(bounds.X, bounds.Y, bounds.Width, bounds.Height);
         }
 
         public void ClearWindows()
@@ -56,6 +237,7 @@ namespace AmethystWindows.DesktopWindowsManager
             {
                 desktopMonitor.Value.Clear();
             }
+            ActivePaneIndices.Clear();
         }
 
         public List<DesktopWindow> GetWindowsByVirtualDesktop(VirtualDesktop virtualDesktop)
@@ -66,6 +248,8 @@ namespace AmethystWindows.DesktopWindowsManager
 
         public void CollectWindows()
         {
+            List<DesktopWindow> collectedWindows = new List<DesktopWindow>();
+            HWND foregroundWindow = User32.GetForegroundWindow();
             User32.EnumWindowsProc filterDesktopWindows = delegate (HWND windowHandle, IntPtr lparam)
             {
                 DesktopWindow desktopWindow = new DesktopWindow(windowHandle);
@@ -85,24 +269,9 @@ namespace AmethystWindows.DesktopWindowsManager
 
                 if (desktopWindow.IsRuntimePresent() || hasActiveAddition)
                 {
-                    User32.ShowWindow(windowHandle, ShowWindowCommand.SW_RESTORE);
+                    if (User32.IsIconic(windowHandle) || !User32.IsWindowVisible(windowHandle)) return true;
                     desktopWindow.GetInfo();
-
-                    if (Windows.ContainsKey(desktopWindow.GetDesktopMonitor()))
-                    {
-                        if (!Windows[desktopWindow.GetDesktopMonitor()].Contains(desktopWindow))
-                        {
-                            AddWindow(desktopWindow);
-                        }
-                    }
-                    else
-                    {
-                        Windows.Add(
-                            desktopWindow.GetDesktopMonitor(),
-                            new ObservableCollection<DesktopWindow>(new DesktopWindow[] { })
-                            );
-                        AddWindow(desktopWindow);
-                    }
+                    collectedWindows.Add(desktopWindow);
                 } else
                 {
                     if (desktopWindow.IsExcluded() && !ExcludedWindows.Contains(desktopWindow) && desktopWindow.AppName != "" && !FixedExcludedFilters.Contains(desktopWindow.AppName)) ExcludedWindows.Add(desktopWindow);
@@ -111,6 +280,36 @@ namespace AmethystWindows.DesktopWindowsManager
             };
 
             User32.EnumWindows(filterDesktopWindows, IntPtr.Zero);
+
+            foreach (IGrouping<Pair<VirtualDesktop, HMONITOR>, DesktopWindow> group in collectedWindows.GroupBy(window => window.GetDesktopMonitor()))
+            {
+                Pair<VirtualDesktop, HMONITOR> key = group.Key;
+                List<DesktopWindow> groupWindows = group.ToList();
+                DesktopWindow active = groupWindows.FirstOrDefault(window => window.Window == foregroundWindow) ?? groupWindows[0];
+                if (!Windows.ContainsKey(key))
+                {
+                    Windows[key] = new ObservableCollection<DesktopWindow>();
+                }
+                else
+                {
+                    Windows[key].Clear();
+                }
+                ActivePaneIndices[key] = 0;
+
+                active.PaneIndex = 0;
+                active.StackOrder = 0;
+                Windows[key].Add(active);
+
+                int stackIndex = 0;
+                foreach (DesktopWindow window in groupWindows.Where(window => window.Window != active.Window))
+                {
+                    int pane = stackIndex % 2 == 0 ? 1 : 0;
+                    window.PaneIndex = pane;
+                    window.StackOrder = stackIndex / 2 + (pane == 0 ? 1 : 0);
+                    Windows[key].Add(window);
+                    stackIndex++;
+                }
+            }
 
             foreach (var desktopMonitor in Windows)
             {

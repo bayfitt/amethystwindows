@@ -10,7 +10,7 @@ namespace AmethystWindows.DesktopWindowsManager
 {
     partial class DesktopWindowsManager
     {
-        public IEnumerable<Rectangle> GridGenerator(int mWidth, int mHeight, int windowsCount, int factor, Layout layout, int layoutPadding)
+        public IEnumerable<Rectangle> GridGenerator(int mWidth, int mHeight, int windowsCount, int factor, Layout layout, int layoutPadding, IReadOnlyList<int>? paneIndices = null)
         {
             int i = 0;
             int j = 0;
@@ -171,14 +171,15 @@ namespace AmethystWindows.DesktopWindowsManager
                     if (windowsCount == 1) yield return new Rectangle(0, 0, mWidth, mHeight);
                     else
                     {
-                        int size = mHeight / (windowsCount - 1);
-                        for (i = 0; i < windowsCount - 1; i++)
+                        int masterWidth = mWidth / 2 + factor * mainWindowViewModel.Step;
+                        int stackX = masterWidth + layoutPadding;
+                        int stackWidth = mWidth - stackX;
+                        Rectangle leftPane = new Rectangle(0, 0, masterWidth, mHeight);
+                        Rectangle rightPane = new Rectangle(stackX, 0, stackWidth, mHeight);
+                        for (i = 0; i < windowsCount; i++)
                         {
-                            int lastPaddingI = i == (windowsCount - 2) ? 0 : layoutPadding;
-                            int lastPaddingJ = windowsCount == 1 ? 0 : layoutPadding;
-
-                            if (i == 0) yield return new Rectangle(0, 0, mWidth / 2 + factor * mainWindowViewModel.Step - (lastPaddingJ / 2), mHeight);
-                            yield return new Rectangle(mWidth / 2 + factor * mainWindowViewModel.Step + (lastPaddingJ / 2), i * size, mWidth / 2 - factor * mainWindowViewModel.Step - (lastPaddingJ / 2), size - lastPaddingI);
+                            int paneIndex = paneIndices != null && i < paneIndices.Count ? paneIndices[i] : (i == 0 ? 0 : 1);
+                            yield return paneIndex == 0 ? leftPane : rightPane;
                         }
                     }
                     break;

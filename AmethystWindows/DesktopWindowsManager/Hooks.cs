@@ -45,7 +45,9 @@ namespace AmethystWindows.DesktopWindowsManager
             if (desktopWindow.IsRuntimePresent() || hasActiveAddition)
             {
                 Debug.WriteLine($"window created");
-                DesktopWindowsManager.AddWindow(desktopWindow);
+                bool isForeground = hWND == User32.GetForegroundWindow();
+                if (isForeground) DesktopWindowsManager.ActivateWindow(desktopWindow);
+                else DesktopWindowsManager.AddWindow(desktopWindow, false);
             } else
             {
                 if (desktopWindow.IsExcluded() && !DesktopWindowsManager.ExcludedWindows.Contains(desktopWindow) && desktopWindow.AppName != "" && !DesktopWindowsManager.FixedExcludedFilters.Contains(desktopWindow.AppName)) DesktopWindowsManager.ExcludedWindows.Add(desktopWindow);
@@ -56,8 +58,26 @@ namespace AmethystWindows.DesktopWindowsManager
         {
             void WinEventHookAll(User32.HWINEVENTHOOK hWinEventHook, uint winEvent, HWND hwnd, int idObject, int idChild, uint idEventThread, uint dwmsEventTime)
             {
+                if (hwnd == HWND.NULL || idObject != User32.ObjectIdentifiers.OBJID_WINDOW || idChild != 0)
+                {
+                    return;
+                }
+
+                // A destroyed HWND may no longer pass IsRuntimeValuable, so remove it
+                // before applying the normal live-window filter below.
+                if (winEvent == User32.EventConstants.EVENT_OBJECT_DESTROY)
+                {
+                    DesktopWindow destroyed = DesktopWindowsManager.FindWindow(hwnd);
+                    if (destroyed != null)
+                    {
+                        DesktopWindowsManager.mainWindowViewModel.LastChangedDesktopMonitor = destroyed.GetDesktopMonitor();
+                        DesktopWindowsManager.RemoveWindow(destroyed);
+                    }
+                    return;
+                }
+
                 DesktopWindow desktopWindow = new DesktopWindow(hwnd);
-                if (hwnd != HWND.NULL && idObject == User32.ObjectIdentifiers.OBJID_WINDOW && idChild == 0 && desktopWindow.IsRuntimeValuable())
+                if (desktopWindow.IsRuntimeValuable())
                 {
                     switch (winEvent)
                     {
@@ -81,7 +101,12 @@ namespace AmethystWindows.DesktopWindowsManager
                             {
                                 hasActiveAddition = false;
                             }
-                            if (desktopWindow.IsRuntimePresent() || hasActiveAddition) DesktopWindowsManager.AddWindow(desktopWindow);
+                            if (desktopWindow.IsRuntimePresent() || hasActiveAddition)
+                            {
+                                bool isForeground = hwnd == User32.GetForegroundWindow();
+                                if (isForeground) DesktopWindowsManager.ActivateWindow(desktopWindow);
+                                else DesktopWindowsManager.AddWindow(desktopWindow, false);
+                            }
                             break;
                         case User32.EventConstants.EVENT_SYSTEM_MINIMIZESTART:
                         case User32.EventConstants.EVENT_OBJECT_HIDE:
@@ -102,9 +127,17 @@ namespace AmethystWindows.DesktopWindowsManager
                             {
                                 DesktopWindow newMoved = new DesktopWindow(hwnd);
                                 newMoved.GetInfo();
-                                if (!moved.Equals(newMoved))
+                                Pair<WindowsDesktop.VirtualDesktop, HMONITOR> oldDesktopMonitor = moved.GetDesktopMonitor();
+                                Pair<WindowsDesktop.VirtualDesktop, HMONITOR> newDesktopMonitor = newMoved.GetDesktopMonitor();
+                                if (!oldDesktopMonitor.Equals(newDesktopMonitor))
                                 {
                                     DesktopWindowsManager.RepositionWindow(moved, newMoved);
+                                }
+                                else if (!DesktopWindowsManager.TryAdjustTallSplitFromResize(moved, newMoved))
+                                {
+                                    // Reapply the active layout after a move or a resize away from
+                                    // the shared Tall divider. Monocle therefore remains full-screen.
+                                    DesktopWindowsManager.Draw(oldDesktopMonitor);
                                 }
                             }
                             break;

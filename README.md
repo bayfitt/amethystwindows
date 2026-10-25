@@ -1,6 +1,8 @@
 # Archived
 
-This project is archived from May 2023.
+The upstream project was archived in May 2023. This fork adds a native Windows ARM64 build and keeps the tiling behavior to the two Amethyst layouts below.
+
+See [BUILDING.md](BUILDING.md) for the ARM64 build steps and runtime notes.
 
 # Amethyst Windows v2
 
@@ -18,7 +20,7 @@ A very quick screencast of basic functions is [available](https://www.youtube.co
 - supports **multi-monitor** set-ups
 - **automatic updates**
 - **open source**
-- available for **x86, x86-64** architectures
+- includes a **native Windows ARM64** build
 
 # Documentation
 
@@ -36,8 +38,8 @@ The keyboard shortcuts configured are:
 
 | Shortcut                  | Description                                   |
 |---------------------------|-----------------------------------------------|
-| `mod1 + space`            | Rotate layouts clockwise                      |
-| `mod2 + space`            | Rotate layouts counterclockwise               |
+| `mod1 + space`            | Toggle between Tall and Monocle               |
+| `mod2 + space`            | Toggle between Tall and Monocle               |
 | `mod1 + enter`            | Swap focused window to main window            |
 | `mod1 + H`                | Swap focused window counterclockwise          |
 | `mod1 + L`                | Swap focused window clockwise                 |
@@ -60,26 +62,11 @@ The keyboard shortcuts configured are:
 
 ## Layouts
 
-### Horizontal
-This layout has one column per window, with each window extending the full height of the screen.
-
-### Vertical
-The rotated version of Horizontal, where each window takes up an entire row, extending the full width of the screen.
-
-### HorizontalGrid
-This layout places the windows in grid occuping space in horizontal when necessary.
-
-### VerticalGrid
-This layout places the windows in grid occuping space in vertical when necessary.
+### Tall
+Tall has two side-by-side slots. New windows alternate between the slots and cover the older window in their slot. Drag either side of the shared divider to resize it; both panes follow the new split. When only one managed window remains, it fills the work area.
 
 ### Monocle
-In this layout, the currently focused window takes up the entire screen, and the other windows are not visible at all.
-
-### Wide
-The rotated version of tall.
-
-### Tall
-The default layout. This gives you one "main pane" on the left, and one other pane on the right. The main window is placed in the main pane (extending the full height of the screen), and all remaining windows are placed in the other pane. The main pane can be shrinked/expanded.
+Monocle gives every managed window the same full-screen slot. The foreground window appears on top. Moving or resizing a window snaps it back into the full-screen slot.
 
 # About
 

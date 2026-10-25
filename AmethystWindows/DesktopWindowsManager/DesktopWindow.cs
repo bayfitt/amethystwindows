@@ -24,6 +24,8 @@ namespace AmethystWindows.DesktopWindowsManager
         public int OffsetY;
         public string ClassName { get; set; }
         public bool IsUWP { get; set; }
+        public int PaneIndex { get; set; }
+        public int StackOrder { get; set; }
 
         private static readonly string[] WindowsClassNamesToSkip =
         {

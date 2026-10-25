@@ -16,7 +16,11 @@ namespace AmethystWindows.DesktopWindowsManager
         public void Draw(Pair<VirtualDesktop, HMONITOR> key)
         {
             if (!mainWindowViewModel.Disabled) { 
-                ObservableCollection<DesktopWindow> windows = Windows[key];
+                if (!Windows.TryGetValue(key, out ObservableCollection<DesktopWindow> windows) || windows.Count == 0)
+                {
+                    return;
+                }
+
                 KeyValuePair<Pair<VirtualDesktop, HMONITOR>, ObservableCollection<DesktopWindow>> desktopMonitor = new KeyValuePair<Pair<VirtualDesktop, HMONITOR>, ObservableCollection<DesktopWindow>>(key, windows);
                 int mX, mY;
                 IEnumerable<Rectangle> gridGenerator;
@@ -53,6 +57,11 @@ namespace AmethystWindows.DesktopWindowsManager
             if (!mainWindowViewModel.Disabled) {
                 foreach (var desktopMonitor in Windows)
                 {
+                    if (desktopMonitor.Value.Count == 0)
+                    {
+                        continue;
+                    }
+
                     int mX, mY;
                     IEnumerable<Rectangle> gridGenerator;
                     DrawMonitor(desktopMonitor, out mX, out mY, out gridGenerator);
@@ -117,7 +126,8 @@ namespace AmethystWindows.DesktopWindowsManager
                 mCurrentFactor = mainWindowViewModel.DesktopMonitors[desktopMonitor.Key].Factor;
             }
 
-            gridGenerator = GridGenerator(mWidth, mHeight, windowsCount, mCurrentFactor, mCurrentLayout, mainWindowViewModel.LayoutPadding);
+            IReadOnlyList<int> paneIndices = desktopMonitor.Value.Select(window => window.PaneIndex).ToList();
+            gridGenerator = GridGenerator(mWidth, mHeight, windowsCount, mCurrentFactor, mCurrentLayout, mainWindowViewModel.LayoutPadding, paneIndices);
         }
 
         private void DrawWindow(int mX, int mY, Rectangle adjustedSize, Tuple<int, DesktopWindow> w, HDWP hDWP, int windowsCount)

@@ -32,6 +32,7 @@ namespace AmethystWindows
                 hooks.setKeyboardHook(new WindowInteropHelper(App.Current.MainWindow).Handle, DWM.mainWindowViewModel.Hotkeys);
                 Debug.WriteLine($"getting windows");
                 DWM.CollectWindows();
+                DWM.Draw();
 
                 Debug.WriteLine($"setting virtual desktop change listener");
                 VirtualDesktop.CurrentChanged += VirtualDesktop_CurrentChanged;
@@ -45,24 +46,7 @@ namespace AmethystWindows
 
         public static void InitVirtualDesktops()
         {
-            VirtualDesktop[] virtualDesktopsExisting = VirtualDesktop.GetDesktops();
-            int virtualDesktopDifference = DWM.mainWindowViewModel.VirtualDesktops - virtualDesktopsExisting.Length;
-
-            if (virtualDesktopDifference < 0)
-            {
-                for (int i = virtualDesktopDifference; i < 0; i++)
-                {
-                    virtualDesktopsExisting[virtualDesktopsExisting.Length + i].Remove();
-                }
-            }
-
-            if (virtualDesktopDifference > 0)
-            {
-                for (int i = 0; i < virtualDesktopDifference; i++)
-                {
-                    VirtualDesktop.Create();
-                }
-            }
+            // Window-layout changes must never create or remove the user's Windows virtual desktops.
         }
 
         private void VirtualDesktop_CurrentChanged(object sender, VirtualDesktopChangedEventArgs e)

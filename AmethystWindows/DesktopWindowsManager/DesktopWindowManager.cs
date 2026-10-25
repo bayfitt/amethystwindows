@@ -20,6 +20,7 @@ namespace AmethystWindows.DesktopWindowsManager
     {
         public Dictionary<Pair<VirtualDesktop, HMONITOR>, ObservableCollection<DesktopWindow>> Windows { get; }
         public Dictionary<Pair<VirtualDesktop, HMONITOR>, bool> WindowsSubscribed = new Dictionary<Pair<VirtualDesktop, HMONITOR>, bool>();
+        public Dictionary<Pair<VirtualDesktop, HMONITOR>, int> ActivePaneIndices = new Dictionary<Pair<VirtualDesktop, HMONITOR>, int>();
 
         public ObservableCollection<DesktopWindow> ExcludedWindows { get; }
 

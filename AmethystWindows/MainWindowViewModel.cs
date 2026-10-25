@@ -488,7 +488,8 @@ namespace AmethystWindows
 
             set
             {
-                _layout = value;
+                // This Windows build intentionally exposes only the two-pane and fullscreen modes.
+                _layout = value == Layout.Monocle ? Layout.Monocle : Layout.Tall;
                 PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Layout)));
             }
         }
@@ -515,28 +516,12 @@ namespace AmethystWindows
 
         public void RotateLayoutClockwise()
         {
-            IEnumerable<Layout> values = Enum.GetValues(typeof(Layout)).Cast<Layout>();
-            if (Layout == values.Max())
-            {
-                Layout = Layout.Horizontal;
-            }
-            else
-            {
-                ++Layout;
-            }
+            Layout = Layout == Layout.Monocle ? Layout.Tall : Layout.Monocle;
         }
 
         public void RotateLayoutCounterClockwise()
         {
-            IEnumerable<Layout> values = Enum.GetValues(typeof(Layout)).Cast<Layout>();
-            if (Layout == 0)
-            {
-                Layout = Layout.Tall;
-            }
-            else
-            {
-                --Layout;
-            }
+            Layout = Layout == Layout.Monocle ? Layout.Tall : Layout.Monocle;
         }
 
         public override bool Equals(object? obj)
