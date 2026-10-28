@@ -153,6 +153,105 @@ namespace AmethystWindowsTests
         }
 
         [Fact]
+        public void ThreeColumnFillsTheWorkAreaWhenOneSlotIsOccupied()
+        {
+            Rectangle[] rectangles = desktopWindowsManager.GridGenerator(
+                1200,
+                800,
+                1,
+                0,
+                Layout.ThreeColumn,
+                0,
+                new[] { 2 }).ToArray();
+
+            Assert.Single(rectangles);
+            Assert.Equal(new Rectangle(0, 0, 1200, 800), rectangles[0]);
+        }
+
+        [Fact]
+        public void ThreeColumnUsesTwoFullHeightColumnsWhenTwoSlotsAreOccupied()
+        {
+            Rectangle[] rectangles = desktopWindowsManager.GridGenerator(
+                1200,
+                800,
+                2,
+                0,
+                Layout.ThreeColumn,
+                0,
+                new[] { 0, 2 }).ToArray();
+
+            Assert.Equal(new Rectangle(0, 0, 600, 800), rectangles[0]);
+            Assert.Equal(new Rectangle(600, 0, 600, 800), rectangles[1]);
+        }
+
+        [Fact]
+        public void TwoByTwoFillsTheWorkAreaWhenOneSlotIsOccupied()
+        {
+            Rectangle[] rectangles = desktopWindowsManager.GridGenerator(
+                1200,
+                800,
+                1,
+                0,
+                Layout.Grid2x2,
+                0,
+                new[] { 3 }).ToArray();
+
+            Assert.Single(rectangles);
+            Assert.Equal(new Rectangle(0, 0, 1200, 800), rectangles[0]);
+        }
+
+        [Fact]
+        public void TwoByTwoUsesTwoFullHeightColumnsWhenTwoSlotsAreOccupied()
+        {
+            Rectangle[] rectangles = desktopWindowsManager.GridGenerator(
+                1200,
+                800,
+                2,
+                0,
+                Layout.Grid2x2,
+                0,
+                new[] { 0, 3 }).ToArray();
+
+            Assert.Equal(new Rectangle(0, 0, 600, 800), rectangles[0]);
+            Assert.Equal(new Rectangle(600, 0, 600, 800), rectangles[1]);
+        }
+
+        [Fact]
+        public void TwoByTwoUsesOneTallLeftPaneAndTwoStackedRightPanesForThreeSlots()
+        {
+            Rectangle[] rectangles = desktopWindowsManager.GridGenerator(
+                1200,
+                800,
+                3,
+                0,
+                Layout.Grid2x2,
+                0,
+                new[] { 0, 1, 2 }).ToArray();
+
+            Assert.Equal(new Rectangle(0, 0, 600, 800), rectangles[0]);
+            Assert.Equal(new Rectangle(600, 0, 600, 400), rectangles[1]);
+            Assert.Equal(new Rectangle(600, 400, 600, 400), rectangles[2]);
+        }
+
+        [Fact]
+        public void TwoByTwoThreeSlotLayoutResizesTheRightPaneDivider()
+        {
+            Rectangle[] rectangles = desktopWindowsManager.GridGenerator(
+                1200,
+                800,
+                3,
+                0,
+                Layout.Grid2x2,
+                0,
+                new[] { 0, 1, 2 },
+                gridRightColumnFactor: 2).ToArray();
+
+            Assert.Equal(new Rectangle(0, 0, 600, 800), rectangles[0]);
+            Assert.Equal(new Rectangle(600, 0, 600, 450), rectangles[1]);
+            Assert.Equal(new Rectangle(600, 450, 600, 350), rectangles[2]);
+        }
+
+        [Fact]
         public void TwoByTwoKeepsLogicalSlotGeometryWhenWindowOrderChanges()
         {
             Rectangle[] rectangles = desktopWindowsManager.GridGenerator(

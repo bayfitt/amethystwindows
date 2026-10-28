@@ -94,6 +94,7 @@ namespace AmethystWindows.DesktopWindowsManager
 
         public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer)
         {
+            using DpiAwarenessScope dpiAwarenessScope = DpiAwarenessScope.EnterPerMonitorAwareV2();
             var list = value as List<ViewModelDesktopMonitor>;
 
             writer.WriteStartArray();
@@ -129,6 +130,7 @@ namespace AmethystWindows.DesktopWindowsManager
 
         public override object ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer)
         {
+            using DpiAwarenessScope dpiAwarenessScope = DpiAwarenessScope.EnterPerMonitorAwareV2();
             List<ViewModelDesktopMonitor> list = new List<ViewModelDesktopMonitor>();
 
             JArray array = JArray.Load(reader);

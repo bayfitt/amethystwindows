@@ -43,6 +43,12 @@ namespace AmethystWindows.DesktopWindowsManager
             return User32.MonitorFromPoint(cursorPosition, User32.MonitorFlags.MONITOR_DEFAULTTONEAREST);
         }
 
+        public static HMONITOR GetMonitorFromWindow(HWND window)
+        {
+            using DpiAwarenessScope dpiAwarenessScope = EnterPerMonitorAwareV2();
+            return User32.MonitorFromWindow(window, User32.MonitorFlags.MONITOR_DEFAULTTONEAREST);
+        }
+
         [DllImport("user32.dll", SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
         private static extern bool GetPhysicalCursorPos(out Point point);

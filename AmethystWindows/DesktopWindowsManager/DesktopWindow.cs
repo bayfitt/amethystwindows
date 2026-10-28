@@ -147,6 +147,7 @@ namespace AmethystWindows.DesktopWindowsManager
 
         public void GetMonitorInfo()
         {
+            using DpiAwarenessScope dpiAwarenessScope = DpiAwarenessScope.EnterPerMonitorAwareV2();
             User32.MONITORINFO monitor = new User32.MONITORINFO();
             monitor.cbSize = (uint)Marshal.SizeOf(monitor);
             MonitorHandle = User32.MonitorFromWindow(Window, User32.MonitorFlags.MONITOR_DEFAULTTONEAREST);

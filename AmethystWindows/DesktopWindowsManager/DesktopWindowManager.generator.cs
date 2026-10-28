@@ -255,6 +255,31 @@ namespace AmethystWindows.DesktopWindowsManager
                 yield break;
             }
 
+            if (twoByTwo && occupiedSlots.Length == 3)
+            {
+                // Use all available area for three windows: one tall left pane and
+                // two stacked panes on the right instead of leaving a grid cell empty.
+                int splitX = GetClampedSplitPosition(width, width / 2, factor, step, 2);
+                int splitY = GetClampedSplitPosition(height, height / 2, gridRightColumnFactor, step, 2);
+                Rectangle[] threePaneLayout =
+                {
+                    new Rectangle(0, 0, Math.Max(0, splitX - layoutPadding), height),
+                    new Rectangle(splitX, 0, width - splitX, Math.Max(0, splitY - layoutPadding)),
+                    new Rectangle(splitX, splitY, width - splitX, height - splitY)
+                };
+                Dictionary<int, Rectangle> threePaneRectanglesBySlot = new Dictionary<int, Rectangle>();
+                for (int slotPosition = 0; slotPosition < occupiedSlots.Length; slotPosition++)
+                {
+                    threePaneRectanglesBySlot[occupiedSlots[slotPosition]] = threePaneLayout[slotPosition];
+                }
+
+                for (int i = 0; i < windowsCount; i++)
+                {
+                    yield return threePaneRectanglesBySlot[assignedSlots[i]];
+                }
+                yield break;
+            }
+
             int columns = twoByTwo ? Math.Min(2, occupiedSlots.Length) : occupiedSlots.Length;
             int rows = twoByTwo && occupiedSlots.Length > 2 ? 2 : 1;
             int[] firstRowColumnSplits = twoByTwo
