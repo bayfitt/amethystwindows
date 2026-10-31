@@ -1,1 +1,1 @@
-73e441aed0d54341ab60a08f1b5800727d7de4562c90b7c49ae067e13c009cce  AmethystWindows-win-arm64.zip
+21c4fb053a6b6ee6fe55c331c4e56aa9f9990a71575e6022e0319231d74a241b  AmethystWindows-win-arm64.zip
