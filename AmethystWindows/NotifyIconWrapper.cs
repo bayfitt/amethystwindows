@@ -36,7 +36,9 @@ namespace AmethystWindows
                 return;
             _notifyIcon = new NotifyIcon
             {
-                Icon = Icon.ExtractAssociatedIcon(Assembly.GetExecutingAssembly().Location),
+                Icon = Icon.ExtractAssociatedIcon(Environment.ProcessPath ?? Assembly.GetExecutingAssembly().Location)
+                    ?? SystemIcons.Application,
+                Text = "Amethyst Windows",
                 Visible = true,
                 ContextMenuStrip = CreateContextMenu()
             };

@@ -31,7 +31,7 @@ namespace AmethystWindows.DesktopWindowsManager
         private readonly PendingMonitorDraws<Pair<VirtualDesktop, HMONITOR>> pendingMonitorDraws = new PendingMonitorDraws<Pair<VirtualDesktop, HMONITOR>>();
         private readonly DispatcherTimer closedWindowCleanupTimer;
 
-        private readonly string[] FixedFilters = new string[] {
+        private static readonly string[] FixedFilters = new string[] {
             "AmethystWindows",
             "AmethystWindowsPackaging",
             "Cortana",
@@ -109,7 +109,7 @@ namespace AmethystWindows.DesktopWindowsManager
 
         private void ExcludedWindows_CollectionChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
         {
-            if (!App.Current.MainWindow.Equals(null))
+            if (App.Current?.MainWindow != null)
             {
                 mainWindowViewModel.UpdateExcludedWindows();
             }

@@ -13,7 +13,6 @@ namespace AmethystWindows.DesktopWindowsManager
     {
         public void AddWindow(DesktopWindow desktopWindow, bool makeActive = true)
         {
-            Pair<string, string> configurableFilter = mainWindowViewModel.ConfigurableFilters.FirstOrDefault(f => f.Key == desktopWindow.AppName);
             Pair<VirtualDesktop, HMONITOR> key = desktopWindow.GetDesktopMonitor();
 
             if (!Windows.ContainsKey(key) && !WindowsSubscribed.ContainsKey(key))
@@ -23,26 +22,26 @@ namespace AmethystWindows.DesktopWindowsManager
                 SubscribeWindowsCollectionChanged(key, true);
             }
 
-            if (FixedFilters.All(s => !desktopWindow.AppName.StartsWith(s)) 
-                && desktopWindow.AppName != String.Empty &&
+            if (ShouldManageWindow(desktopWindow.AppName, desktopWindow.ClassName, mainWindowViewModel.ConfigurableFilters) &&
                 !Windows[key].Contains(desktopWindow))
-            { 
-                if (configurableFilter.Equals(null))
-                {
-                    AddWindowToPane(desktopWindow, null, makeActive);
-                }
-                else
-                {
-                    if (configurableFilter.Value != "*" && configurableFilter.Value != desktopWindow.ClassName)
-                    {
-                        AddWindowToPane(desktopWindow, null, makeActive);
-                    }
-                }
+            {
+                AddWindowToPane(desktopWindow, null, makeActive);
             }
             else if (Windows.ContainsKey(key) && Windows[key].Contains(desktopWindow) && makeActive)
             {
                 ActivePaneIndices[key] = desktopWindow.PaneIndex;
             }
+        }
+
+        internal static bool ShouldManageWindow(string? appName, string? className, IEnumerable<Pair<string, string>> filters)
+        {
+            if (string.IsNullOrEmpty(appName) || FixedFilters.Any(prefix => appName.StartsWith(prefix)))
+            {
+                return false;
+            }
+
+            Pair<string, string> filter = filters.FirstOrDefault(item => item.Key == appName);
+            return filter.Key == null || (filter.Value != "*" && filter.Value != className);
         }
 
         private void AddWindowToPane(DesktopWindow desktopWindow, int? requestedPane, bool makeActive)
@@ -595,6 +594,13 @@ namespace AmethystWindows.DesktopWindowsManager
                 desktopWindow.GetAppName();
                 desktopWindow.GetClassName();
 
+                // Enumeration must apply the same filters as later window events.
+                // In particular, never let Amethyst tile and restore its own window.
+                if (!ShouldManageWindow(desktopWindow.AppName, desktopWindow.ClassName, mainWindowViewModel.ConfigurableFilters))
+                {
+                    return true;
+                }
+
                 Pair<string, string> configurableAddition = mainWindowViewModel.ConfigurableAdditions.FirstOrDefault(f => f.Key == desktopWindow.AppName);
                 bool hasActiveAddition;
                 if (!(configurableAddition.Key == null))
@@ -674,7 +680,7 @@ namespace AmethystWindows.DesktopWindowsManager
                 DesktopWindow desktopWindow = (DesktopWindow)e.NewItems[0];
                 if (desktopWindow.GetDesktopMonitor().Key.Equals(null) || desktopWindow.GetDesktopMonitor().Value.Equals(null)) desktopWindow.GetInfo();
             }
-            if (!App.Current.MainWindow.Equals(null))
+            if (App.Current?.MainWindow != null)
             {
                 mainWindowViewModel.UpdateWindows();
             }

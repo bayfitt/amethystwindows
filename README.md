@@ -24,6 +24,12 @@ A very quick screencast of basic functions is [available](https://www.youtube.co
 
 # Documentation
 
+## Start with Windows and use the system tray
+
+Amethyst starts minimized in the Windows system tray. Double-click its tray icon to open the settings window, or right-click it to open the window, disable tiling, or exit. Closing the settings window leaves Amethyst running in the tray. If the icon is hidden, open the taskbar's hidden-icons menu, or enable it under **Settings → Personalization → Taskbar → Other system tray icons**.
+
+To start Amethyst when you sign in, place a shortcut to `AmethystWindows.exe` in your Windows Startup folder. You can open that folder by pressing `Win+R`, entering `shell:startup`, and pressing Enter. The executable must remain at the shortcut's target location.
+
 ## Default Keyboard Shortcuts
 
 Amethyst Windows uses two modifiers.

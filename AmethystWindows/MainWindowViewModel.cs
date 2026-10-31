@@ -192,7 +192,12 @@ namespace AmethystWindows
             ClosingCommand = new RelayCommand<CancelEventArgs>(Closing);
             NotifyIconOpenCommand = new RelayCommand(() => { WindowState = WindowState.Normal; });
             NotifyIconExitCommand = new RelayCommand(() => { Application.Current.Shutdown(); });
-            UpdateWindowsCommand = new RelayCommand(UpdateWindows);
+            // Activated can be delivered during a synchronous Windows input call.
+            // Defer the virtual-desktop COM lookup until that call has returned.
+            UpdateWindowsCommand = new RelayCommand(() =>
+            {
+                Application.Current.Dispatcher.BeginInvoke(new Action(UpdateWindows));
+            });
             FilterAppCommand = new RelayCommand(FilterApp);
             FilterClassWithinAppCommand = new RelayCommand(FilterClassWithinApp);
             RemoveFilterCommand = new RelayCommand(RemoveFilter);
