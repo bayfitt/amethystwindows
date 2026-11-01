@@ -1,10 +1,8 @@
-# Archived
+# Amethyst Windows ARM64 fork
 
 The upstream project was archived in May 2023. This fork adds a native Windows ARM64 build and focuses on four layouts: Full Screen, Tall, Three Columns, and 2 × 2 Grid.
 
 See [BUILDING.md](BUILDING.md) for the ARM64 build steps and runtime notes.
-
-# Amethyst Windows v2
 
 [![Gitter](https://badges.gitter.im/glsorre/amethystwindows.svg)](https://gitter.im/glsorre/amethystwindows?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
 [![GitHub labels](https://img.shields.io/github/labels/glsorre/amethystwindows/help%20wanted)](https://github.com/glsorre/amethystwindows/labels/help%20wanted)
@@ -18,7 +16,6 @@ A very quick screencast of basic functions is [available](https://www.youtube.co
 - integrated with **windows 10/11 virtual desktops**
 - fully **customizable shortcuts**
 - supports **multi-monitor** set-ups
-- **automatic updates**
 - **open source**
 - includes a **native Windows ARM64** build
 

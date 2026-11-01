@@ -2,6 +2,8 @@
 
 This fork was built and tested on Windows 11 ARM64 with .NET SDK 10.0.402 and .NET runtime 10.0.13. The app targets `net10.0-windows10.0.19041.0` and uses the `win-arm64` runtime identifier for a native ARM64 executable.
 
+Windows 10, x64 and x86 builds, and the legacy MSI installer have not been validated as part of this fork's ARM64 testing.
+
 ## Requirements
 
 - Windows 10 or later.
