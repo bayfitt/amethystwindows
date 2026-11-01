@@ -3,6 +3,9 @@
 ###############################################################################
 * text=auto
 
+# Preserve detached SSH signatures byte-for-byte across Windows checkouts.
+*.sig binary
+
 ###############################################################################
 # Set default behavior for command prompt diff.
 #

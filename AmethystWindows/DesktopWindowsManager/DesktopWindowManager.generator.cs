@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.Linq;
 using Vanara.PInvoke;
 using WindowsDesktop;
 
@@ -10,7 +11,17 @@ namespace AmethystWindows.DesktopWindowsManager
 {
     partial class DesktopWindowsManager
     {
-        public IEnumerable<Rectangle> GridGenerator(int mWidth, int mHeight, int windowsCount, int factor, Layout layout, int layoutPadding)
+        public IEnumerable<Rectangle> GridGenerator(
+            int mWidth,
+            int mHeight,
+            int windowsCount,
+            int factor,
+            Layout layout,
+            int layoutPadding,
+            IReadOnlyList<int>? paneIndices = null,
+            int secondaryFactor = 0,
+            int gridBottomRowFactor = 0,
+            int gridRightColumnFactor = 0)
         {
             int i = 0;
             int j = 0;
@@ -146,6 +157,18 @@ namespace AmethystWindows.DesktopWindowsManager
                         }
                     }
                     break;
+                case Layout.ThreeColumn:
+                    foreach (Rectangle rectangle in GenerateSlotLayout(mWidth, mHeight, windowsCount, layoutPadding, 3, false, paneIndices, factor, secondaryFactor, gridBottomRowFactor, gridRightColumnFactor, mainWindowViewModel.Step))
+                    {
+                        yield return rectangle;
+                    }
+                    break;
+                case Layout.Grid2x2:
+                    foreach (Rectangle rectangle in GenerateSlotLayout(mWidth, mHeight, windowsCount, layoutPadding, 4, true, paneIndices, factor, secondaryFactor, gridBottomRowFactor, gridRightColumnFactor, mainWindowViewModel.Step))
+                    {
+                        yield return rectangle;
+                    }
+                    break;
                 case Layout.Monocle:
                     for (i = 0; i < windowsCount; i++)
                     {
@@ -168,21 +191,169 @@ namespace AmethystWindows.DesktopWindowsManager
                     }
                     break;
                 case Layout.Tall:
-                    if (windowsCount == 1) yield return new Rectangle(0, 0, mWidth, mHeight);
+                    if (windowsCount == 1 || (paneIndices != null && paneIndices.Take(windowsCount).Distinct().Count() == 1))
+                    {
+                        for (i = 0; i < windowsCount; i++)
+                        {
+                            yield return new Rectangle(0, 0, mWidth, mHeight);
+                        }
+                    }
                     else
                     {
-                        int size = mHeight / (windowsCount - 1);
-                        for (i = 0; i < windowsCount - 1; i++)
+                        int masterWidth = mWidth / 2 + factor * mainWindowViewModel.Step;
+                        int stackX = masterWidth + layoutPadding;
+                        int stackWidth = mWidth - stackX;
+                        Rectangle leftPane = new Rectangle(0, 0, masterWidth, mHeight);
+                        Rectangle rightPane = new Rectangle(stackX, 0, stackWidth, mHeight);
+                        for (i = 0; i < windowsCount; i++)
                         {
-                            int lastPaddingI = i == (windowsCount - 2) ? 0 : layoutPadding;
-                            int lastPaddingJ = windowsCount == 1 ? 0 : layoutPadding;
-
-                            if (i == 0) yield return new Rectangle(0, 0, mWidth / 2 + factor * mainWindowViewModel.Step - (lastPaddingJ / 2), mHeight);
-                            yield return new Rectangle(mWidth / 2 + factor * mainWindowViewModel.Step + (lastPaddingJ / 2), i * size, mWidth / 2 - factor * mainWindowViewModel.Step - (lastPaddingJ / 2), size - lastPaddingI);
+                            int paneIndex = paneIndices != null && i < paneIndices.Count ? paneIndices[i] : (i == 0 ? 0 : 1);
+                            yield return paneIndex == 0 ? leftPane : rightPane;
                         }
                     }
                     break;
             }
+        }
+
+        private static IEnumerable<Rectangle> GenerateSlotLayout(
+            int width,
+            int height,
+            int windowsCount,
+            int layoutPadding,
+            int slotCapacity,
+            bool twoByTwo,
+            IReadOnlyList<int>? paneIndices,
+            int factor,
+            int secondaryFactor,
+            int gridBottomRowFactor,
+            int gridRightColumnFactor,
+            int step)
+        {
+            if (windowsCount <= 0)
+            {
+                yield break;
+            }
+
+            int[] assignedSlots = new int[windowsCount];
+            for (int i = 0; i < windowsCount; i++)
+            {
+                int slot = paneIndices != null && i < paneIndices.Count ? paneIndices[i] : i;
+                assignedSlots[i] = ((slot % slotCapacity) + slotCapacity) % slotCapacity;
+            }
+
+            // Pane indices are the stable logical slots used by resize handling.
+            // Keep their geometry stable even when windows are enumerated in a
+            // different order (for example after closing or reassigning a pane).
+            int[] occupiedSlots = assignedSlots.Distinct().OrderBy(slot => slot).ToArray();
+            if (occupiedSlots.Length == 1)
+            {
+                Rectangle fullWorkArea = new Rectangle(0, 0, width, height);
+                for (int i = 0; i < windowsCount; i++)
+                {
+                    yield return fullWorkArea;
+                }
+                yield break;
+            }
+
+            if (twoByTwo && occupiedSlots.Length == 3)
+            {
+                // Use all available area for three windows: one tall left pane and
+                // two stacked panes on the right instead of leaving a grid cell empty.
+                int splitX = GetClampedSplitPosition(width, width / 2, factor, step, 2);
+                int splitY = GetClampedSplitPosition(height, height / 2, gridRightColumnFactor, step, 2);
+                Rectangle[] threePaneLayout =
+                {
+                    new Rectangle(0, 0, Math.Max(0, splitX - layoutPadding), height),
+                    new Rectangle(splitX, 0, width - splitX, Math.Max(0, splitY - layoutPadding)),
+                    new Rectangle(splitX, splitY, width - splitX, height - splitY)
+                };
+                Dictionary<int, Rectangle> threePaneRectanglesBySlot = new Dictionary<int, Rectangle>();
+                for (int slotPosition = 0; slotPosition < occupiedSlots.Length; slotPosition++)
+                {
+                    threePaneRectanglesBySlot[occupiedSlots[slotPosition]] = threePaneLayout[slotPosition];
+                }
+
+                for (int i = 0; i < windowsCount; i++)
+                {
+                    yield return threePaneRectanglesBySlot[assignedSlots[i]];
+                }
+                yield break;
+            }
+
+            int columns = twoByTwo ? Math.Min(2, occupiedSlots.Length) : occupiedSlots.Length;
+            int rows = twoByTwo && occupiedSlots.Length > 2 ? 2 : 1;
+            int[] firstRowColumnSplits = twoByTwo
+                ? new[] { GetClampedSplitPosition(width, width / 2, factor, step, columns) }
+                : GetThreeColumnDividerPositions(width, columns, factor, secondaryFactor, step);
+            int[] secondRowColumnSplits = twoByTwo
+                ? new[] { GetClampedSplitPosition(width, width / 2, gridBottomRowFactor, step, columns) }
+                : firstRowColumnSplits;
+            int[] firstColumnRowSplits = rows > 1
+                ? new[] { GetClampedSplitPosition(height, height / 2, secondaryFactor, step, rows) }
+                : Array.Empty<int>();
+            int[] secondColumnRowSplits = rows > 1
+                ? new[] { GetClampedSplitPosition(height, height / 2, gridRightColumnFactor, step, rows) }
+                : Array.Empty<int>();
+            Dictionary<int, Rectangle> rectanglesBySlot = new Dictionary<int, Rectangle>();
+
+            for (int slotPosition = 0; slotPosition < occupiedSlots.Length; slotPosition++)
+            {
+                int column = slotPosition % columns;
+                int row = slotPosition / columns;
+                int[] columnSplits = row == 0 ? firstRowColumnSplits : secondRowColumnSplits;
+                int[] rowSplits = column == 0 ? firstColumnRowSplits : secondColumnRowSplits;
+                int x = column == 0 ? 0 : columnSplits[column - 1];
+                int y = row == 0 ? 0 : rowSplits[row - 1];
+                int columnEnd = column == columns - 1 ? width : columnSplits[column];
+                int rowEnd = row == rows - 1 ? height : rowSplits[row];
+                int tileWidth = Math.Max(0, columnEnd - x - (column == columns - 1 ? 0 : layoutPadding));
+                int tileHeight = Math.Max(0, rowEnd - y - (row == rows - 1 ? 0 : layoutPadding));
+                rectanglesBySlot[occupiedSlots[slotPosition]] = new Rectangle(x, y, tileWidth, tileHeight);
+            }
+
+            for (int i = 0; i < windowsCount; i++)
+            {
+                yield return rectanglesBySlot[assignedSlots[i]];
+            }
+        }
+
+        internal static int[] GetThreeColumnDividerPositions(int width, int columns, int factor, int secondaryFactor, int step)
+        {
+            if (columns <= 1)
+            {
+                return Array.Empty<int>();
+            }
+
+            if (columns == 2)
+            {
+                return new[] { GetClampedSplitPosition(width, width / 2, factor, step, columns) };
+            }
+
+            int minimumPaneWidth = GetMinimumPaneExtent(width, 3);
+            int first = ClampSplitPosition(width / 3 + factor * step, minimumPaneWidth, width - (2 * minimumPaneWidth));
+            int second = ClampSplitPosition((2 * width) / 3 + secondaryFactor * step, first + minimumPaneWidth, width - minimumPaneWidth);
+            return new[] { first, second };
+        }
+
+        internal static int GetClampedSplitPosition(int length, int baseline, int factor, int step, int paneCount)
+        {
+            int minimumPaneExtent = GetMinimumPaneExtent(length, paneCount);
+            return ClampSplitPosition(baseline + factor * step, minimumPaneExtent, length - minimumPaneExtent);
+        }
+
+        internal static int GetMinimumPaneExtent(int length, int paneCount)
+        {
+            int minimumExtent = Math.Min(120, Math.Max(1, length / Math.Max(2, paneCount * 2)));
+            return Math.Min(minimumExtent, Math.Max(1, length / Math.Max(1, paneCount)));
+        }
+
+        private static int ClampSplitPosition(int desired, int minimum, int maximum)
+        {
+            if (maximum < minimum)
+            {
+                minimum = maximum = Math.Max(0, (minimum + maximum) / 2);
+            }
+            return Math.Clamp(desired, minimum, maximum);
         }
 
     }

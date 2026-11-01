@@ -24,7 +24,36 @@ namespace AmethystWindows.DesktopWindowsManager
         VertGrid = 3,
         Monocle = 4,
         Wide = 5,
-        Tall = 6
+        Tall = 6,
+        ThreeColumn = 7,
+        Grid2x2 = 8
+    }
+
+    public static class LayoutExtensions
+    {
+        public static int PaneCount(this Layout layout)
+        {
+            return layout switch
+            {
+                Layout.Monocle => 1,
+                Layout.Tall => 2,
+                Layout.ThreeColumn => 3,
+                Layout.Grid2x2 => 4,
+                _ => 2
+            };
+        }
+
+        public static string DisplayName(this Layout layout)
+        {
+            return layout switch
+            {
+                Layout.Monocle => "Full Screen",
+                Layout.Tall => "Two Pane",
+                Layout.ThreeColumn => "Three Columns",
+                Layout.Grid2x2 => "2 × 2 Grid",
+                _ => "Two Pane"
+            };
+        }
     }
 
     public struct Pair<K, V>
@@ -65,6 +94,7 @@ namespace AmethystWindows.DesktopWindowsManager
 
         public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer)
         {
+            using DpiAwarenessScope dpiAwarenessScope = DpiAwarenessScope.EnterPerMonitorAwareV2();
             var list = value as List<ViewModelDesktopMonitor>;
 
             writer.WriteStartArray();
@@ -85,6 +115,12 @@ namespace AmethystWindows.DesktopWindowsManager
                 writer.WriteValue(desktopMonitor.Layout);
                 writer.WritePropertyName("Factor");
                 writer.WriteValue(desktopMonitor.Factor);
+                writer.WritePropertyName("SecondaryFactor");
+                writer.WriteValue(desktopMonitor.SecondaryFactor);
+                writer.WritePropertyName("GridBottomRowFactor");
+                writer.WriteValue(desktopMonitor.GridBottomRowFactor);
+                writer.WritePropertyName("GridRightColumnFactor");
+                writer.WriteValue(desktopMonitor.GridRightColumnFactor);
                 writer.WriteEndObject();
 
             }
@@ -94,6 +130,7 @@ namespace AmethystWindows.DesktopWindowsManager
 
         public override object ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer)
         {
+            using DpiAwarenessScope dpiAwarenessScope = DpiAwarenessScope.EnterPerMonitorAwareV2();
             List<ViewModelDesktopMonitor> list = new List<ViewModelDesktopMonitor>();
 
             JArray array = JArray.Load(reader);
@@ -104,6 +141,9 @@ namespace AmethystWindows.DesktopWindowsManager
                 {
                     Layout layout = (Layout)desktopMonitor.GetValue("Layout").Value<int>();
                     int factor = desktopMonitor.GetValue("Factor").Value<int>();
+                    int secondaryFactor = desktopMonitor.GetValue("SecondaryFactor")?.Value<int>() ?? 0;
+                    int gridBottomRowFactor = desktopMonitor.GetValue("GridBottomRowFactor")?.Value<int>() ?? 0;
+                    int gridRightColumnFactor = desktopMonitor.GetValue("GridRightColumnFactor")?.Value<int>() ?? 0;
 
                     Point point = new Point(desktopMonitor.GetValue("MonitorX").Value<int>() + 100, desktopMonitor.GetValue("MonitorY").Value<int>() + 100);
                     HMONITOR monitor = User32.MonitorFromPoint(point, User32.MonitorFlags.MONITOR_DEFAULTTONEAREST);
@@ -111,7 +151,14 @@ namespace AmethystWindows.DesktopWindowsManager
                     VirtualDesktop savedDesktop = VirtualDesktop.GetDesktops().First(vD => vD.Id.Equals(new Guid(desktopMonitor.GetValue("DesktopID").Value<string>())));
                     HMONITOR savedMonitor = monitor;
 
-                    list.Add(new ViewModelDesktopMonitor(monitor, savedDesktop, factor, layout));
+                    list.Add(new ViewModelDesktopMonitor(
+                        monitor,
+                        savedDesktop,
+                        factor,
+                        layout,
+                        secondaryFactor,
+                        gridBottomRowFactor,
+                        gridRightColumnFactor));
                 } catch
                 {
                     Debug.WriteLine("WARNING: something was wrong in reloading your settings. Most probably monitor or virtual desktop do not exist anymore.");

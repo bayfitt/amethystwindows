@@ -12,6 +12,7 @@ using System.Diagnostics;
 using System.Windows.Interop;
 using System.Threading.Tasks;
 using System.Runtime.CompilerServices;
+using System.Windows.Threading;
 
 [assembly: InternalsVisibleTo("AmethystWindowsTests")]
 namespace AmethystWindows.DesktopWindowsManager
@@ -20,14 +21,17 @@ namespace AmethystWindows.DesktopWindowsManager
     {
         public Dictionary<Pair<VirtualDesktop, HMONITOR>, ObservableCollection<DesktopWindow>> Windows { get; }
         public Dictionary<Pair<VirtualDesktop, HMONITOR>, bool> WindowsSubscribed = new Dictionary<Pair<VirtualDesktop, HMONITOR>, bool>();
+        public Dictionary<Pair<VirtualDesktop, HMONITOR>, int> ActivePaneIndices = new Dictionary<Pair<VirtualDesktop, HMONITOR>, int>();
 
         public ObservableCollection<DesktopWindow> ExcludedWindows { get; }
 
         public MainWindowViewModel mainWindowViewModel = App.Current != null ? App.Current.MainWindow.DataContext as MainWindowViewModel : new MainWindowViewModel();
 
         private DebounceDispatcher debounceDispatcher = new DebounceDispatcher(100);
+        private readonly PendingMonitorDraws<Pair<VirtualDesktop, HMONITOR>> pendingMonitorDraws = new PendingMonitorDraws<Pair<VirtualDesktop, HMONITOR>>();
+        private readonly DispatcherTimer closedWindowCleanupTimer;
 
-        private readonly string[] FixedFilters = new string[] {
+        private static readonly string[] FixedFilters = new string[] {
             "AmethystWindows",
             "AmethystWindowsPackaging",
             "Cortana",
@@ -78,11 +82,34 @@ namespace AmethystWindows.DesktopWindowsManager
 
             ExcludedWindows.CollectionChanged += ExcludedWindows_CollectionChanged;
             mainWindowViewModel.PropertyChanged += MainWindowViewModel_PropertyChanged;
+
+            // WinEvent destroy notifications can be missed for some windows. Reconcile
+            // dead HWNDs on the UI dispatcher so a stale second pane cannot remain tiled.
+            closedWindowCleanupTimer = new DispatcherTimer
+            {
+                Interval = TimeSpan.FromMilliseconds(250)
+            };
+            closedWindowCleanupTimer.Tick += (sender, args) => ReconcileClosedWindows();
+            closedWindowCleanupTimer.Start();
+        }
+
+        private void ReconcileClosedWindows()
+        {
+            foreach (KeyValuePair<Pair<VirtualDesktop, HMONITOR>, ObservableCollection<DesktopWindow>> desktopMonitor in Windows.ToArray())
+            {
+                foreach (DesktopWindow window in desktopMonitor.Value.ToArray())
+                {
+                    if (!User32.IsWindow(window.Window))
+                    {
+                        RemoveWindow(window);
+                    }
+                }
+            }
         }
 
         private void ExcludedWindows_CollectionChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
         {
-            if (!App.Current.MainWindow.Equals(null))
+            if (App.Current?.MainWindow != null)
             {
                 mainWindowViewModel.UpdateExcludedWindows();
             }
@@ -128,8 +155,40 @@ namespace AmethystWindows.DesktopWindowsManager
             }
             if (ModelViewPropertiesDraw.Contains(e.PropertyName))
             {
-                if (ModelViewPropertiesDrawMonitor.Contains(e.PropertyName) && mainWindowViewModel.LastChangedDesktopMonitor.Key != null) debounceDispatcher.Debounce(() => Draw(mainWindowViewModel.LastChangedDesktopMonitor));
-                else debounceDispatcher.Debounce(() => Draw());
+                if (ModelViewPropertiesDrawMonitor.Contains(e.PropertyName))
+                {
+                    Pair<VirtualDesktop, HMONITOR> changedMonitor = mainWindowViewModel.LastChangedDesktopMonitor;
+                    if (changedMonitor.Key != null)
+                    {
+                        pendingMonitorDraws.Add(changedMonitor);
+                    }
+                    else
+                    {
+                        pendingMonitorDraws.AddAll();
+                    }
+
+                    debounceDispatcher.Debounce(DrawPendingMonitors);
+                }
+                else
+                {
+                    pendingMonitorDraws.AddAll();
+                    debounceDispatcher.Debounce(DrawPendingMonitors);
+                }
+            }
+        }
+
+        private void DrawPendingMonitors()
+        {
+            PendingMonitorDrawRequest<Pair<VirtualDesktop, HMONITOR>> request = pendingMonitorDraws.Take();
+            if (request.DrawAll)
+            {
+                Draw();
+                return;
+            }
+
+            foreach (Pair<VirtualDesktop, HMONITOR> desktopMonitor in request.Monitors)
+            {
+                Draw(desktopMonitor);
             }
         }
 
@@ -169,5 +228,55 @@ namespace AmethystWindows.DesktopWindowsManager
             WindowsSubscribed[desktopMonitor] = enabled;
         }
 
+    }
+
+    internal sealed class PendingMonitorDraws<TKey> where TKey : notnull
+    {
+        private readonly object sync = new object();
+        private readonly HashSet<TKey> monitors = new HashSet<TKey>();
+        private bool drawAll;
+
+        public void Add(TKey monitor)
+        {
+            lock (sync)
+            {
+                if (!drawAll)
+                {
+                    monitors.Add(monitor);
+                }
+            }
+        }
+
+        public void AddAll()
+        {
+            lock (sync)
+            {
+                drawAll = true;
+                monitors.Clear();
+            }
+        }
+
+        public PendingMonitorDrawRequest<TKey> Take()
+        {
+            lock (sync)
+            {
+                PendingMonitorDrawRequest<TKey> request = new PendingMonitorDrawRequest<TKey>(drawAll, monitors.ToArray());
+                drawAll = false;
+                monitors.Clear();
+                return request;
+            }
+        }
+    }
+
+    internal sealed class PendingMonitorDrawRequest<TKey> where TKey : notnull
+    {
+        public bool DrawAll { get; }
+        public IReadOnlyList<TKey> Monitors { get; }
+
+        public PendingMonitorDrawRequest(bool drawAll, IReadOnlyList<TKey> monitors)
+        {
+            DrawAll = drawAll;
+            Monitors = monitors;
+        }
     }
 }

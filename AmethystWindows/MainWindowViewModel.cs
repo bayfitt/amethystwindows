@@ -192,7 +192,12 @@ namespace AmethystWindows
             ClosingCommand = new RelayCommand<CancelEventArgs>(Closing);
             NotifyIconOpenCommand = new RelayCommand(() => { WindowState = WindowState.Normal; });
             NotifyIconExitCommand = new RelayCommand(() => { Application.Current.Shutdown(); });
-            UpdateWindowsCommand = new RelayCommand(UpdateWindows);
+            // Activated can be delivered during a synchronous Windows input call.
+            // Defer the virtual-desktop COM lookup until that call has returned.
+            UpdateWindowsCommand = new RelayCommand(() =>
+            {
+                Application.Current.Dispatcher.BeginInvoke(new Action(UpdateWindows));
+            });
             FilterAppCommand = new RelayCommand(FilterApp);
             FilterClassWithinAppCommand = new RelayCommand(FilterClassWithinApp);
             RemoveFilterCommand = new RelayCommand(RemoveFilter);
@@ -327,6 +332,24 @@ namespace AmethystWindows
             set => SetProperty(ref _desktopMonitors, value);
         }
 
+        public ViewModelDesktopMonitor GetOrCreateDesktopMonitor(Pair<VirtualDesktop, HMONITOR> desktopMonitor)
+        {
+            ViewModelDesktopMonitor? existing = DesktopMonitors.FirstOrDefault(item =>
+                item.Monitor.Equals(desktopMonitor.Value) && item.VirtualDesktop.Equals(desktopMonitor.Key));
+            if (existing != null)
+            {
+                return existing;
+            }
+
+            ViewModelDesktopMonitor created = new ViewModelDesktopMonitor(
+                desktopMonitor.Value,
+                desktopMonitor.Key,
+                0,
+                Layout.Tall);
+            DesktopMonitors.Add(created);
+            return created;
+        }
+
         public ObservableHotkeys Hotkeys
         {
             get => _hotkeys;
@@ -450,9 +473,20 @@ namespace AmethystWindows
 
     public class ViewModelDesktopMonitor : INotifyPropertyChanged
     {
+        private static readonly Layout[] SupportedLayoutCycle =
+        {
+            Layout.Monocle,
+            Layout.Tall,
+            Layout.ThreeColumn,
+            Layout.Grid2x2
+        };
+
         private HMONITOR _monitor;
         private VirtualDesktop _virtualDesktop;
         private int _factor;
+        private int _secondaryFactor;
+        private int _gridBottomRowFactor;
+        private int _gridRightColumnFactor;
         private Layout _layout;
         public HMONITOR Monitor { 
             get => _monitor;
@@ -482,22 +516,72 @@ namespace AmethystWindows
                 PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Factor)));
             }
         }
+        public int SecondaryFactor
+        {
+            get => _secondaryFactor;
+
+            set
+            {
+                _secondaryFactor = value;
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(SecondaryFactor)));
+            }
+        }
+        public int GridBottomRowFactor
+        {
+            get => _gridBottomRowFactor;
+
+            set
+            {
+                _gridBottomRowFactor = value;
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(GridBottomRowFactor)));
+            }
+        }
+        public int GridRightColumnFactor
+        {
+            get => _gridRightColumnFactor;
+
+            set
+            {
+                _gridRightColumnFactor = value;
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(GridRightColumnFactor)));
+            }
+        }
         public Layout Layout
         {
             get => _layout;
 
             set
             {
-                _layout = value;
+                _layout = value is Layout.Monocle or Layout.Tall or Layout.ThreeColumn or Layout.Grid2x2
+                    ? value
+                    : Layout.Tall;
                 PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Layout)));
             }
         }
 
-        public ViewModelDesktopMonitor(HMONITOR monitor, VirtualDesktop virtualDesktop, int factor, Layout layout)
+        public ViewModelDesktopMonitor(
+            HMONITOR monitor,
+            VirtualDesktop virtualDesktop,
+            int factor,
+            Layout layout,
+            int secondaryFactor = 0,
+            int gridBottomRowFactor = 0,
+            int gridRightColumnFactor = 0)
         {
+            if (layout == Layout.Grid2x2)
+            {
+                factor = 0;
+                secondaryFactor = 0;
+                gridBottomRowFactor = 0;
+                gridRightColumnFactor = 0;
+            }
+
             Monitor = monitor;
             VirtualDesktop = virtualDesktop;
             Factor = factor;
+            SecondaryFactor = secondaryFactor;
+            GridBottomRowFactor = gridBottomRowFactor;
+            GridRightColumnFactor = gridRightColumnFactor;
             Layout = layout;
         }
 
@@ -513,30 +597,42 @@ namespace AmethystWindows
             ++Factor;
         }
 
-        public void RotateLayoutClockwise()
+        public Layout RotateLayoutClockwise()
         {
-            IEnumerable<Layout> values = Enum.GetValues(typeof(Layout)).Cast<Layout>();
-            if (Layout == values.Max())
-            {
-                Layout = Layout.Horizontal;
-            }
-            else
-            {
-                ++Layout;
-            }
+            SetLayout(NextLayout(Layout, true));
+            return Layout;
         }
 
-        public void RotateLayoutCounterClockwise()
+        public Layout RotateLayoutCounterClockwise()
         {
-            IEnumerable<Layout> values = Enum.GetValues(typeof(Layout)).Cast<Layout>();
-            if (Layout == 0)
+            SetLayout(NextLayout(Layout, false));
+            return Layout;
+        }
+
+        private void SetLayout(Layout layout)
+        {
+            if (layout == Layout.Grid2x2)
             {
-                Layout = Layout.Tall;
+                Factor = 0;
+                SecondaryFactor = 0;
+                GridBottomRowFactor = 0;
+                GridRightColumnFactor = 0;
             }
-            else
+
+            Layout = layout;
+        }
+
+        internal static Layout NextLayout(Layout currentLayout, bool clockwise)
+        {
+            int currentIndex = Array.IndexOf(SupportedLayoutCycle, currentLayout);
+            if (currentIndex < 0)
             {
-                --Layout;
+                currentIndex = Array.IndexOf(SupportedLayoutCycle, Layout.Tall);
             }
+
+            int direction = clockwise ? 1 : -1;
+            int nextIndex = (currentIndex + direction + SupportedLayoutCycle.Length) % SupportedLayoutCycle.Length;
+            return SupportedLayoutCycle[nextIndex];
         }
 
         public override bool Equals(object? obj)
@@ -545,12 +641,15 @@ namespace AmethystWindows
                    EqualityComparer<HMONITOR>.Default.Equals(Monitor, monitor.Monitor) &&
                    EqualityComparer<VirtualDesktop>.Default.Equals(VirtualDesktop, monitor.VirtualDesktop) &&
                    Factor == monitor.Factor &&
+                   SecondaryFactor == monitor.SecondaryFactor &&
+                   GridBottomRowFactor == monitor.GridBottomRowFactor &&
+                   GridRightColumnFactor == monitor.GridRightColumnFactor &&
                    Layout == monitor.Layout;
         }
 
         public override int GetHashCode()
         {
-            return HashCode.Combine(Monitor, VirtualDesktop, Factor, Layout);
+            return HashCode.Combine(Monitor, VirtualDesktop, Factor, SecondaryFactor, GridBottomRowFactor, GridRightColumnFactor, Layout);
         }
 
         public Pair<VirtualDesktop, HMONITOR> getPair()
@@ -624,19 +723,26 @@ namespace AmethystWindows
 
         private void ObservableDesktopMonitors_CollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
         {
-            if (e.NewItems != null)
+            if (e.Action == NotifyCollectionChangedAction.Add && e.NewItems != null)
             {
                 foreach (Object item in e.NewItems)
                 {
                     ((INotifyPropertyChanged)item).PropertyChanged += ItemPropertyChanged;
                 }
             }
-            if (e.OldItems != null)
+            else if (e.Action == NotifyCollectionChangedAction.Remove && e.OldItems != null)
             {
                 foreach (Object item in e.OldItems)
                 {
                     ((INotifyPropertyChanged)item).PropertyChanged -= ItemPropertyChanged;
                 }
+            }
+            else if (e.Action == NotifyCollectionChangedAction.Replace &&
+                     e.OldItems != null && e.NewItems != null &&
+                     !ReferenceEquals(e.OldItems[0], e.NewItems[0]))
+            {
+                ((INotifyPropertyChanged)e.OldItems[0]).PropertyChanged -= ItemPropertyChanged;
+                ((INotifyPropertyChanged)e.NewItems[0]).PropertyChanged += ItemPropertyChanged;
             }
         }
 

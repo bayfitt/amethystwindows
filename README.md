@@ -1,8 +1,8 @@
-# Archived
+# Amethyst Windows ARM64 fork
 
-This project is archived from May 2023.
+The upstream project was archived in May 2023. This fork adds a native Windows ARM64 build and focuses on four layouts: Full Screen, Tall, Three Columns, and 2 × 2 Grid.
 
-# Amethyst Windows v2
+See [BUILDING.md](BUILDING.md) for the ARM64 build steps and runtime notes.
 
 [![Gitter](https://badges.gitter.im/glsorre/amethystwindows.svg)](https://gitter.im/glsorre/amethystwindows?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
 [![GitHub labels](https://img.shields.io/github/labels/glsorre/amethystwindows/help%20wanted)](https://github.com/glsorre/amethystwindows/labels/help%20wanted)
@@ -16,11 +16,18 @@ A very quick screencast of basic functions is [available](https://www.youtube.co
 - integrated with **windows 10/11 virtual desktops**
 - fully **customizable shortcuts**
 - supports **multi-monitor** set-ups
-- **automatic updates**
 - **open source**
-- available for **x86, x86-64** architectures
+- includes a **native Windows ARM64** build
 
 # Documentation
+
+## Start with Windows and use the system tray
+
+Amethyst starts minimized in the Windows system tray. Double-click its tray icon to open the settings window, or right-click it to open the window, disable tiling, or exit. Closing the settings window leaves Amethyst running in the tray. If the icon is hidden, open the taskbar's hidden-icons menu, or enable it under **Settings → Personalization → Taskbar → Other system tray icons**.
+
+To start Amethyst when you sign in, place a shortcut to `AmethystWindows.exe` in your Windows Startup folder. You can open that folder by pressing `Win+R`, entering `shell:startup`, and pressing Enter. The executable must remain at the shortcut's target location.
+
+An example of the settings used by this fork's maintainer is available in [examples/bayfitt-settings](examples/bayfitt-settings/README.md), including a portable version for other computers.
 
 ## Default Keyboard Shortcuts
 
@@ -36,8 +43,8 @@ The keyboard shortcuts configured are:
 
 | Shortcut                  | Description                                   |
 |---------------------------|-----------------------------------------------|
-| `mod1 + space`            | Rotate layouts clockwise                      |
-| `mod2 + space`            | Rotate layouts counterclockwise               |
+| `mod1 + space`            | Cycle clockwise through the four layouts       |
+| `mod2 + space`            | Cycle counterclockwise through the four layouts |
 | `mod1 + enter`            | Swap focused window to main window            |
 | `mod1 + H`                | Swap focused window counterclockwise          |
 | `mod1 + L`                | Swap focused window clockwise                 |
@@ -60,26 +67,19 @@ The keyboard shortcuts configured are:
 
 ## Layouts
 
-### Horizontal
-This layout has one column per window, with each window extending the full height of the screen.
-
-### Vertical
-The rotated version of Horizontal, where each window takes up an entire row, extending the full width of the screen.
-
-### HorizontalGrid
-This layout places the windows in grid occuping space in horizontal when necessary.
-
-### VerticalGrid
-This layout places the windows in grid occuping space in vertical when necessary.
+### Tall
+Tall has two side-by-side slots. New windows alternate between the slots and cover the older window in their slot. Drag either side of the shared divider to resize it; both panes follow the new split. When one pane's entire window stack closes, the remaining pane fills the work area.
 
 ### Monocle
-In this layout, the currently focused window takes up the entire screen, and the other windows are not visible at all.
+Monocle gives every managed window the same full-screen slot. The foreground window appears on top. Moving or resizing a window snaps it back into the full-screen slot.
 
-### Wide
-The rotated version of tall.
+### Three Columns
+Three Columns divides the work area into up to three equal-width slots. New windows use the next empty slot, then stack in the next inactive slot once all three are occupied. If only one slot remains occupied, it fills the work area.
 
-### Tall
-The default layout. This gives you one "main pane" on the left, and one other pane on the right. The main window is placed in the main pane (extending the full height of the screen), and all remaining windows are placed in the other pane. The main pane can be shrinked/expanded.
+### 2 × 2 Grid
+The 2 × 2 Grid arranges up to four slots in two columns and two rows. New windows use empty slots before stacking over the next inactive slot. With two occupied slots it uses two side-by-side panes; with three or four it uses the 2 × 2 grid. A lone occupied slot fills the work area.
+
+Each layout switch briefly shows the selected layout name on screen. `mod1 + space` cycles clockwise and `mod2 + space` cycles counterclockwise; with the defaults, these are `Alt+Shift+Space` and `Alt+Shift+Win+Space`.
 
 # About
 

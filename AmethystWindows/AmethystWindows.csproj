@@ -2,12 +2,12 @@
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net6.0-windows10.0.19041.0</TargetFramework>
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
     <Nullable>enable</Nullable>
     <UseWPF>true</UseWPF>
     <UseWindowsForms>True</UseWindowsForms>
-	<Platforms>AnyCPU;x64;x86</Platforms>
-	<RuntimeIdentifiers>win-x64;win-x86</RuntimeIdentifiers>
+	<Platforms>AnyCPU;ARM64;x64;x86</Platforms>
+	<RuntimeIdentifiers>win-arm64;win-x64;win-x86</RuntimeIdentifiers>
 	<ApplicationIcon>Logo.ico</ApplicationIcon>
   </PropertyGroup>
 
@@ -47,9 +47,9 @@
     <PackageReference Include="Microsoft.Xaml.Behaviors.Wpf" Version="1.1.39" />
     <PackageReference Include="ModernWpfUI" Version="0.9.4" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
+    <PackageReference Include="Slions.VirtualDesktop" Version="6.9.2" />
     <PackageReference Include="Vanara.PInvoke.DwmApi" Version="3.3.15" />
     <PackageReference Include="Vanara.PInvoke.User32" Version="3.3.15" />
-    <PackageReference Include="VirtualDesktop" Version="5.0.5" />
   </ItemGroup>
 
 </Project>

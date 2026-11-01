@@ -1,3 +1,4 @@
+using AmethystWindows;
 using AmethystWindows.DesktopWindowsManager;
 using System;
 using System.Collections.Generic;
@@ -11,6 +12,631 @@ namespace AmethystWindowsTests
     {
         DesktopWindowsManager desktopWindowsManager = new DesktopWindowsManager();
         Layout layout;
+
+        [Fact]
+        public void TallUsesOnlyTheAssignedTwoPaneSlots()
+        {
+            int[] panes = { 0, 1, 1, 0, 1 };
+            Rectangle[] rectangles = desktopWindowsManager.GridGenerator(1000, 1000, panes.Length, 0, Layout.Tall, 0, panes).ToArray();
+
+            Assert.Equal(new Rectangle(0, 0, 500, 1000), rectangles[0]);
+            Assert.Equal(new Rectangle(500, 0, 500, 1000), rectangles[1]);
+            Assert.Equal(rectangles[1], rectangles[2]);
+            Assert.Equal(rectangles[0], rectangles[3]);
+            Assert.Equal(rectangles[1], rectangles[4]);
+            Assert.Equal(2, rectangles.Distinct().Count());
+        }
+
+        [Fact]
+        public void EnteringGridClockwiseResetsEveryDividerToAnEvenSplit()
+        {
+            ViewModelDesktopMonitor monitor = new ViewModelDesktopMonitor(
+                default,
+                null!,
+                8,
+                Layout.ThreeColumn,
+                secondaryFactor: -4,
+                gridBottomRowFactor: 3,
+                gridRightColumnFactor: -2);
+
+            Assert.Equal(Layout.Grid2x2, monitor.RotateLayoutClockwise());
+            Assert.Equal(0, monitor.Factor);
+            Assert.Equal(0, monitor.SecondaryFactor);
+            Assert.Equal(0, monitor.GridBottomRowFactor);
+            Assert.Equal(0, monitor.GridRightColumnFactor);
+        }
+
+        [Fact]
+        public void EnteringGridCounterClockwiseResetsEveryDividerToAnEvenSplit()
+        {
+            ViewModelDesktopMonitor monitor = new ViewModelDesktopMonitor(
+                default,
+                null!,
+                -5,
+                Layout.Monocle,
+                secondaryFactor: 6,
+                gridBottomRowFactor: -3,
+                gridRightColumnFactor: 4);
+
+            Assert.Equal(Layout.Grid2x2, monitor.RotateLayoutCounterClockwise());
+            Assert.Equal(0, monitor.Factor);
+            Assert.Equal(0, monitor.SecondaryFactor);
+            Assert.Equal(0, monitor.GridBottomRowFactor);
+            Assert.Equal(0, monitor.GridRightColumnFactor);
+        }
+
+        [Fact]
+        public void LoadingGrid2x2WithSavedOffsetsStartsWithEvenDividers()
+        {
+            ViewModelDesktopMonitor monitor = new ViewModelDesktopMonitor(
+                default,
+                null!,
+                -11,
+                Layout.Grid2x2,
+                secondaryFactor: 18,
+                gridBottomRowFactor: -5,
+                gridRightColumnFactor: 7);
+
+            Assert.Equal(0, monitor.Factor);
+            Assert.Equal(0, monitor.SecondaryFactor);
+            Assert.Equal(0, monitor.GridBottomRowFactor);
+            Assert.Equal(0, monitor.GridRightColumnFactor);
+        }
+
+        [Fact]
+        public void TallFillsTheWorkAreaWhenOneWindowRemainsInTheSecondPane()
+        {
+            Rectangle[] rectangles = desktopWindowsManager.GridGenerator(
+                1000,
+                800,
+                1,
+                0,
+                Layout.Tall,
+                0,
+                new[] { 1 }).ToArray();
+
+            Assert.Single(rectangles);
+            Assert.Equal(new Rectangle(0, 0, 1000, 800), rectangles[0]);
+        }
+
+        [Fact]
+        public void TallFillsTheWorkAreaWhenOnlyOnePaneHasWindowsRemaining()
+        {
+            Rectangle[] rectangles = desktopWindowsManager.GridGenerator(
+                1000,
+                800,
+                3,
+                0,
+                Layout.Tall,
+                0,
+                new[] { 1, 1, 1 }).ToArray();
+
+            Assert.Equal(3, rectangles.Length);
+            Assert.All(rectangles, rectangle => Assert.Equal(new Rectangle(0, 0, 1000, 800), rectangle));
+        }
+
+        [Fact]
+        public void ThreeColumnUsesThreeSlotsAndStacksWindowsAfterTheThird()
+        {
+            Rectangle[] rectangles = desktopWindowsManager.GridGenerator(
+                1200,
+                800,
+                4,
+                0,
+                Layout.ThreeColumn,
+                0,
+                new[] { 0, 1, 2, 0 }).ToArray();
+
+            Assert.Equal(new Rectangle(0, 0, 400, 800), rectangles[0]);
+            Assert.Equal(new Rectangle(400, 0, 400, 800), rectangles[1]);
+            Assert.Equal(new Rectangle(800, 0, 400, 800), rectangles[2]);
+            Assert.Equal(rectangles[0], rectangles[3]);
+        }
+
+        [Fact]
+        public void TwoByTwoUsesFourSlotsAndStacksWindowsAfterTheFourth()
+        {
+            Rectangle[] rectangles = desktopWindowsManager.GridGenerator(
+                1200,
+                800,
+                5,
+                0,
+                Layout.Grid2x2,
+                0,
+                new[] { 0, 1, 2, 3, 1 }).ToArray();
+
+            Assert.Equal(new Rectangle(0, 0, 600, 400), rectangles[0]);
+            Assert.Equal(new Rectangle(600, 0, 600, 400), rectangles[1]);
+            Assert.Equal(new Rectangle(0, 400, 600, 400), rectangles[2]);
+            Assert.Equal(new Rectangle(600, 400, 600, 400), rectangles[3]);
+            Assert.Equal(rectangles[1], rectangles[4]);
+        }
+
+        [Fact]
+        public void ThreeColumnFillsTheWorkAreaWhenOneSlotIsOccupied()
+        {
+            Rectangle[] rectangles = desktopWindowsManager.GridGenerator(
+                1200,
+                800,
+                1,
+                0,
+                Layout.ThreeColumn,
+                0,
+                new[] { 2 }).ToArray();
+
+            Assert.Single(rectangles);
+            Assert.Equal(new Rectangle(0, 0, 1200, 800), rectangles[0]);
+        }
+
+        [Fact]
+        public void ThreeColumnUsesTwoFullHeightColumnsWhenTwoSlotsAreOccupied()
+        {
+            Rectangle[] rectangles = desktopWindowsManager.GridGenerator(
+                1200,
+                800,
+                2,
+                0,
+                Layout.ThreeColumn,
+                0,
+                new[] { 0, 2 }).ToArray();
+
+            Assert.Equal(new Rectangle(0, 0, 600, 800), rectangles[0]);
+            Assert.Equal(new Rectangle(600, 0, 600, 800), rectangles[1]);
+        }
+
+        [Fact]
+        public void TwoByTwoFillsTheWorkAreaWhenOneSlotIsOccupied()
+        {
+            Rectangle[] rectangles = desktopWindowsManager.GridGenerator(
+                1200,
+                800,
+                1,
+                0,
+                Layout.Grid2x2,
+                0,
+                new[] { 3 }).ToArray();
+
+            Assert.Single(rectangles);
+            Assert.Equal(new Rectangle(0, 0, 1200, 800), rectangles[0]);
+        }
+
+        [Fact]
+        public void TwoByTwoUsesTwoFullHeightColumnsWhenTwoSlotsAreOccupied()
+        {
+            Rectangle[] rectangles = desktopWindowsManager.GridGenerator(
+                1200,
+                800,
+                2,
+                0,
+                Layout.Grid2x2,
+                0,
+                new[] { 0, 3 }).ToArray();
+
+            Assert.Equal(new Rectangle(0, 0, 600, 800), rectangles[0]);
+            Assert.Equal(new Rectangle(600, 0, 600, 800), rectangles[1]);
+        }
+
+        [Fact]
+        public void TwoByTwoUsesOneTallLeftPaneAndTwoStackedRightPanesForThreeSlots()
+        {
+            Rectangle[] rectangles = desktopWindowsManager.GridGenerator(
+                1200,
+                800,
+                3,
+                0,
+                Layout.Grid2x2,
+                0,
+                new[] { 0, 1, 2 }).ToArray();
+
+            Assert.Equal(new Rectangle(0, 0, 600, 800), rectangles[0]);
+            Assert.Equal(new Rectangle(600, 0, 600, 400), rectangles[1]);
+            Assert.Equal(new Rectangle(600, 400, 600, 400), rectangles[2]);
+        }
+
+        [Fact]
+        public void TwoByTwoThreeSlotLayoutResizesTheRightPaneDivider()
+        {
+            Rectangle[] rectangles = desktopWindowsManager.GridGenerator(
+                1200,
+                800,
+                3,
+                0,
+                Layout.Grid2x2,
+                0,
+                new[] { 0, 1, 2 },
+                gridRightColumnFactor: 2).ToArray();
+
+            Assert.Equal(new Rectangle(0, 0, 600, 800), rectangles[0]);
+            Assert.Equal(new Rectangle(600, 0, 600, 450), rectangles[1]);
+            Assert.Equal(new Rectangle(600, 450, 600, 350), rectangles[2]);
+        }
+
+        [Fact]
+        public void TwoByTwoKeepsLogicalSlotGeometryWhenWindowOrderChanges()
+        {
+            Rectangle[] rectangles = desktopWindowsManager.GridGenerator(
+                1200,
+                800,
+                4,
+                0,
+                Layout.Grid2x2,
+                0,
+                new[] { 2, 0, 3, 1 }).ToArray();
+
+            Assert.Equal(new Rectangle(0, 400, 600, 400), rectangles[0]);
+            Assert.Equal(new Rectangle(0, 0, 600, 400), rectangles[1]);
+            Assert.Equal(new Rectangle(600, 400, 600, 400), rectangles[2]);
+            Assert.Equal(new Rectangle(600, 0, 600, 400), rectangles[3]);
+        }
+
+        [Fact]
+        public void ThreeColumnLayoutAppliesBothVerticalDividerFactors()
+        {
+            Rectangle[] rectangles = desktopWindowsManager.GridGenerator(
+                1200,
+                800,
+                3,
+                2,
+                Layout.ThreeColumn,
+                0,
+                new[] { 0, 1, 2 },
+                -1).ToArray();
+
+            Assert.Equal(new Rectangle(0, 0, 450, 800), rectangles[0]);
+            Assert.Equal(new Rectangle(450, 0, 325, 800), rectangles[1]);
+            Assert.Equal(new Rectangle(775, 0, 425, 800), rectangles[2]);
+        }
+
+        [Fact]
+        public void TwoByTwoLayoutKeepsEachRowAndColumnDividerIndependent()
+        {
+            Rectangle[] rectangles = desktopWindowsManager.GridGenerator(
+                1200,
+                800,
+                4,
+                2,
+                Layout.Grid2x2,
+                0,
+                new[] { 0, 1, 2, 3 },
+                -2,
+                -1,
+                1).ToArray();
+
+            Assert.Equal(new Rectangle(0, 0, 650, 350), rectangles[0]);
+            Assert.Equal(new Rectangle(650, 0, 550, 425), rectangles[1]);
+            Assert.Equal(new Rectangle(0, 350, 575, 450), rectangles[2]);
+            Assert.Equal(new Rectangle(575, 425, 625, 375), rectangles[3]);
+        }
+
+        [Fact]
+        public void TwoByTwoResizeUpdatesOnlyTheDividerForTheChangedRowOrColumn()
+        {
+            AssertGridResizeUpdatesFactors(
+                0, new Rectangle(0, 0, 600, 400), new Rectangle(0, 0, 640, 400),
+                factor: 4, secondaryFactor: 2, bottomRowFactor: 3, rightColumnFactor: 4);
+            AssertGridResizeUpdatesFactors(
+                1, new Rectangle(600, 0, 600, 400), new Rectangle(640, 0, 560, 400),
+                factor: 4, secondaryFactor: 2, bottomRowFactor: 3, rightColumnFactor: 4);
+            AssertGridResizeUpdatesFactors(
+                2, new Rectangle(0, 400, 600, 400), new Rectangle(0, 400, 560, 400),
+                factor: 1, secondaryFactor: 2, bottomRowFactor: -4, rightColumnFactor: 4);
+            AssertGridResizeUpdatesFactors(
+                3, new Rectangle(600, 400, 600, 400), new Rectangle(560, 400, 640, 400),
+                factor: 1, secondaryFactor: 2, bottomRowFactor: -4, rightColumnFactor: 4);
+            AssertGridResizeUpdatesFactors(
+                0, new Rectangle(0, 0, 600, 400), new Rectangle(0, 0, 600, 430),
+                factor: 1, secondaryFactor: 3, bottomRowFactor: 3, rightColumnFactor: 4);
+            AssertGridResizeUpdatesFactors(
+                2, new Rectangle(0, 400, 600, 400), new Rectangle(0, 430, 600, 370),
+                factor: 1, secondaryFactor: 3, bottomRowFactor: 3, rightColumnFactor: 4);
+            AssertGridResizeUpdatesFactors(
+                1, new Rectangle(600, 0, 600, 400), new Rectangle(600, 0, 600, 430),
+                factor: 1, secondaryFactor: 2, bottomRowFactor: 3, rightColumnFactor: 3);
+            AssertGridResizeUpdatesFactors(
+                3, new Rectangle(600, 400, 600, 400), new Rectangle(600, 430, 600, 370),
+                factor: 1, secondaryFactor: 2, bottomRowFactor: 3, rightColumnFactor: 3);
+        }
+
+        [Fact]
+        public void ResizingTopLeftGridPanePushesTopRightWithoutOverlappingAnyPane()
+        {
+            bool adjusted = DesktopWindowsManager.TryAdjustGridSplitFactorsFromResize(
+                0,
+                4,
+                new Rectangle(0, 0, 600, 400),
+                new Rectangle(0, 0, 700, 400),
+                0,
+                0,
+                1200,
+                800,
+                0,
+                0,
+                0,
+                0,
+                25,
+                0,
+                0,
+                0,
+                0,
+                out int factor,
+                out int secondaryFactor,
+                out int bottomRowFactor,
+                out int rightColumnFactor);
+
+            Assert.True(adjusted);
+            Rectangle[] rectangles = desktopWindowsManager.GridGenerator(
+                1200,
+                800,
+                4,
+                factor,
+                Layout.Grid2x2,
+                0,
+                new[] { 0, 1, 2, 3 },
+                secondaryFactor,
+                bottomRowFactor,
+                rightColumnFactor).ToArray();
+
+            Assert.Equal(new Rectangle(0, 0, 700, 400), rectangles[0]);
+            Assert.Equal(new Rectangle(700, 0, 500, 400), rectangles[1]);
+            Assert.Equal(new Rectangle(0, 400, 600, 400), rectangles[2]);
+            Assert.Equal(new Rectangle(600, 400, 600, 400), rectangles[3]);
+
+            for (int i = 0; i < rectangles.Length; i++)
+            {
+                for (int j = i + 1; j < rectangles.Length; j++)
+                {
+                    Assert.False(rectangles[i].IntersectsWith(rectangles[j]));
+                }
+            }
+        }
+
+        private static void AssertGridResizeUpdatesFactors(
+            int panePosition,
+            Rectangle oldBounds,
+            Rectangle resizedBounds,
+            int factor,
+            int secondaryFactor,
+            int bottomRowFactor,
+            int rightColumnFactor)
+        {
+            bool adjusted = DesktopWindowsManager.TryAdjustGridSplitFactorsFromResize(
+                panePosition,
+                4,
+                oldBounds,
+                resizedBounds,
+                0,
+                0,
+                1200,
+                800,
+                0,
+                0,
+                0,
+                0,
+                10,
+                1,
+                2,
+                3,
+                4,
+                out int adjustedFactor,
+                out int adjustedSecondaryFactor,
+                out int adjustedBottomRowFactor,
+                out int adjustedRightColumnFactor);
+
+            Assert.True(adjusted);
+            Assert.Equal(factor, adjustedFactor);
+            Assert.Equal(secondaryFactor, adjustedSecondaryFactor);
+            Assert.Equal(bottomRowFactor, adjustedBottomRowFactor);
+            Assert.Equal(rightColumnFactor, adjustedRightColumnFactor);
+        }
+
+        [Fact]
+        public void ThreeColumnExpandsWhenOnlyOneSlotRemainsOccupied()
+        {
+            Rectangle[] rectangles = desktopWindowsManager.GridGenerator(
+                1200,
+                800,
+                2,
+                0,
+                Layout.ThreeColumn,
+                0,
+                new[] { 2, 2 }).ToArray();
+
+            Assert.All(rectangles, rectangle => Assert.Equal(new Rectangle(0, 0, 1200, 800), rectangle));
+        }
+
+        [Fact]
+        public void LayoutHotkeyCyclesThroughAllFourModesInBothDirections()
+        {
+            Layout[] expectedClockwise =
+            {
+                Layout.Tall,
+                Layout.ThreeColumn,
+                Layout.Grid2x2,
+                Layout.Monocle,
+                Layout.Tall
+            };
+            Layout current = Layout.Monocle;
+
+            foreach (Layout expected in expectedClockwise)
+            {
+                current = ViewModelDesktopMonitor.NextLayout(current, true);
+                Assert.Equal(expected, current);
+            }
+
+            Layout[] expectedCounterclockwise =
+            {
+                Layout.Monocle,
+                Layout.Grid2x2,
+                Layout.ThreeColumn,
+                Layout.Tall,
+                Layout.Monocle
+            };
+            current = Layout.Tall;
+
+            foreach (Layout expected in expectedCounterclockwise)
+            {
+                current = ViewModelDesktopMonitor.NextLayout(current, false);
+                Assert.Equal(expected, current);
+            }
+        }
+
+        [Fact]
+        public void ResizingTallMasterPaneUpdatesTheSharedSplit()
+        {
+            bool adjusted = DesktopWindowsManager.TryCalculateTallSplitFactor(
+                new Rectangle(0, 0, 502, 1000),
+                new Rectangle(0, 0, 652, 1000),
+                0,
+                0,
+                1000,
+                8,
+                2,
+                4,
+                25,
+                out int factor);
+
+            Assert.True(adjusted);
+            Assert.Equal(6, factor);
+        }
+
+        [Fact]
+        public void ResizingTallStackPaneMovesTheSameSharedSplit()
+        {
+            bool adjusted = DesktopWindowsManager.TryCalculateTallSplitFactor(
+                new Rectangle(502, 0, 498, 1000),
+                new Rectangle(602, 0, 398, 1000),
+                1,
+                0,
+                1000,
+                8,
+                2,
+                4,
+                25,
+                out int factor);
+
+            Assert.True(adjusted);
+            Assert.Equal(4, factor);
+        }
+
+        [Fact]
+        public void ResizingAnOuterEdgeDoesNotChangeTheTallSplit()
+        {
+            bool adjusted = DesktopWindowsManager.TryCalculateTallSplitFactor(
+                new Rectangle(502, 0, 498, 1000),
+                new Rectangle(502, 0, 448, 1000),
+                1,
+                0,
+                1000,
+                8,
+                2,
+                4,
+                25,
+                out _);
+
+            Assert.False(adjusted);
+        }
+
+        [Fact]
+        public void ResizingEitherSideOfAThreeColumnDividerChangesItsFactor()
+        {
+            bool leadingPaneAdjusted = DesktopWindowsManager.TryCalculateSharedSplitFactor(
+                new Rectangle(0, 0, 398, 800),
+                new Rectangle(0, 0, 498, 800),
+                true,
+                true,
+                0,
+                1200,
+                8,
+                2,
+                4,
+                25,
+                400,
+                120,
+                680,
+                out int leadingFactor);
+            bool followingPaneAdjusted = DesktopWindowsManager.TryCalculateSharedSplitFactor(
+                new Rectangle(398, 0, 802, 800),
+                new Rectangle(498, 0, 702, 800),
+                true,
+                false,
+                0,
+                1200,
+                8,
+                2,
+                4,
+                25,
+                400,
+                120,
+                680,
+                out int followingFactor);
+
+            Assert.True(leadingPaneAdjusted);
+            Assert.True(followingPaneAdjusted);
+            Assert.Equal(4, leadingFactor);
+            Assert.Equal(4, followingFactor);
+        }
+
+        [Fact]
+        public void ResizingEitherSideOfGridHorizontalDividerChangesItsFactor()
+        {
+            bool topPaneAdjusted = DesktopWindowsManager.TryCalculateSharedSplitFactor(
+                new Rectangle(0, 0, 600, 398),
+                new Rectangle(0, 0, 600, 448),
+                false,
+                true,
+                0,
+                800,
+                8,
+                2,
+                4,
+                25,
+                400,
+                120,
+                680,
+                out int topFactor);
+            bool bottomPaneAdjusted = DesktopWindowsManager.TryCalculateSharedSplitFactor(
+                new Rectangle(0, 402, 600, 398),
+                new Rectangle(0, 452, 600, 348),
+                false,
+                false,
+                0,
+                800,
+                8,
+                2,
+                4,
+                25,
+                400,
+                120,
+                680,
+                out int bottomFactor);
+
+            Assert.True(topPaneAdjusted);
+            Assert.True(bottomPaneAdjusted);
+            Assert.Equal(2, topFactor);
+            Assert.Equal(2, bottomFactor);
+        }
+
+        [Fact]
+        public void ResizingGridOuterEdgeDoesNotChangeEitherSplitFactor()
+        {
+            bool adjusted = DesktopWindowsManager.TryCalculateSharedSplitFactor(
+                new Rectangle(0, 0, 600, 400),
+                new Rectangle(-50, 0, 650, 400),
+                true,
+                true,
+                0,
+                1200,
+                8,
+                2,
+                4,
+                25,
+                600,
+                120,
+                1080,
+                out _);
+
+            Assert.False(adjusted);
+        }
 
         [Fact]
         public void GridGeneratorCountOne()
@@ -127,8 +753,8 @@ namespace AmethystWindowsTests
             layout = Layout.Tall;
             gridGenerator = desktopWindowsManager.GridGenerator(1000, 1000, 3, 0, layout, 0);
             Assert.Equal<Rectangle>(gridGenerator.ToArray()[0], new Rectangle(0, 0, 500, 1000));
-            Assert.Equal<Rectangle>(gridGenerator.ToArray()[1], new Rectangle(500, 0, 500, 500));
-            Assert.Equal<Rectangle>(gridGenerator.ToArray()[2], new Rectangle(500, 500, 500, 500));
+            Assert.Equal<Rectangle>(gridGenerator.ToArray()[1], new Rectangle(500, 0, 500, 1000));
+            Assert.Equal<Rectangle>(gridGenerator.ToArray()[2], new Rectangle(500, 0, 500, 1000));
             Assert.Throws<IndexOutOfRangeException>(() => gridGenerator.ToArray()[3]);
         }
 
@@ -180,9 +806,9 @@ namespace AmethystWindowsTests
             layout = Layout.Tall;
             gridGenerator = desktopWindowsManager.GridGenerator(1000, 1000, 4, 0, layout, 0);
             Assert.Equal<Rectangle>(gridGenerator.ToArray()[0], new Rectangle(0, 0, 500, 1000));
-            Assert.Equal<Rectangle>(gridGenerator.ToArray()[1], new Rectangle(500, 0, 500, 333));
-            Assert.Equal<Rectangle>(gridGenerator.ToArray()[2], new Rectangle(500, 333, 500, 333));
-            Assert.Equal<Rectangle>(gridGenerator.ToArray()[3], new Rectangle(500, 666, 500, 333));
+            Assert.Equal<Rectangle>(gridGenerator.ToArray()[1], new Rectangle(500, 0, 500, 1000));
+            Assert.Equal<Rectangle>(gridGenerator.ToArray()[2], new Rectangle(500, 0, 500, 1000));
+            Assert.Equal<Rectangle>(gridGenerator.ToArray()[3], new Rectangle(500, 0, 500, 1000));
             Assert.Throws<IndexOutOfRangeException>(() => gridGenerator.ToArray()[4]);
         }
 
@@ -232,10 +858,10 @@ namespace AmethystWindowsTests
             layout = Layout.Tall;
             gridGenerator = desktopWindowsManager.GridGenerator(1000, 1000, 5, 0, layout, 0);
             Assert.Equal<Rectangle>(gridGenerator.ToArray()[0], new Rectangle(0, 0, 500, 1000));
-            Assert.Equal<Rectangle>(gridGenerator.ToArray()[1], new Rectangle(500, 0, 500, 250));
-            Assert.Equal<Rectangle>(gridGenerator.ToArray()[2], new Rectangle(500, 250, 500, 250));
-            Assert.Equal<Rectangle>(gridGenerator.ToArray()[3], new Rectangle(500, 500, 500, 250));
-            Assert.Equal<Rectangle>(gridGenerator.ToArray()[4], new Rectangle(500, 750, 500, 250));
+            Assert.Equal<Rectangle>(gridGenerator.ToArray()[1], new Rectangle(500, 0, 500, 1000));
+            Assert.Equal<Rectangle>(gridGenerator.ToArray()[2], new Rectangle(500, 0, 500, 1000));
+            Assert.Equal<Rectangle>(gridGenerator.ToArray()[3], new Rectangle(500, 0, 500, 1000));
+            Assert.Equal<Rectangle>(gridGenerator.ToArray()[4], new Rectangle(500, 0, 500, 1000));
             Assert.Throws<IndexOutOfRangeException>(() => gridGenerator.ToArray()[5]);
         }
 

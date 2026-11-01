@@ -11,6 +11,7 @@ namespace AmethystWindows
     public partial class MainWindow : Window
     {
         private MainWindowViewModel mainWindowViewModel;
+        private LayoutNotificationWindow? layoutNotificationWindow;
 
         public MainWindow()
         {
@@ -31,17 +32,12 @@ namespace AmethystWindows
             {
                 if (wParam.ToInt32() == 0x11)
                 {
-                    HMONITOR currentMonitor = User32.MonitorFromWindow(User32.GetForegroundWindow(), User32.MonitorFlags.MONITOR_DEFAULTTONEAREST);
-                    VirtualDesktop currentDesktop = VirtualDesktop.Current;
-                    Pair<VirtualDesktop, HMONITOR> currentPair = new Pair<VirtualDesktop, HMONITOR>(currentDesktop, currentMonitor);
-                    ViewModelDesktopMonitor viewModelDesktopMonitor = mainWindowViewModel.DesktopMonitors[currentPair];
-                    viewModelDesktopMonitor.RotateLayoutClockwise();
-                    //string desktopLabel = string.IsNullOrEmpty(currentPair.Key.Name) ? $"Desktop {currentPair.Key.Id}" : currentPair.Key.Name;
+                    ChangeLayoutAtPointer(clockwise: true);
                 }
                 if (wParam.ToInt32() == 0x12)
                 {
                     HWND selectedWindow = User32.GetForegroundWindow();
-                    HMONITOR currentMonitor = User32.MonitorFromWindow(selectedWindow, User32.MonitorFlags.MONITOR_DEFAULTTONEAREST);
+                    HMONITOR currentMonitor = DpiAwarenessScope.GetMonitorFromWindow(selectedWindow);
                     DesktopWindow selected = App.DWM.GetWindowByHandlers(selectedWindow, currentMonitor, VirtualDesktop.Current);
                     Pair<VirtualDesktop, HMONITOR> currentPair = new Pair<VirtualDesktop, HMONITOR>(VirtualDesktop.Current, currentMonitor);
                     App.DWM.SetMainWindow(currentPair, selected);
@@ -49,7 +45,7 @@ namespace AmethystWindows
                 if (wParam.ToInt32() == 0x15)
                 {
                     HWND selectedWindow = User32.GetForegroundWindow();
-                    HMONITOR currentMonitor = User32.MonitorFromWindow(selectedWindow, User32.MonitorFlags.MONITOR_DEFAULTTONEAREST);
+                    HMONITOR currentMonitor = DpiAwarenessScope.GetMonitorFromWindow(selectedWindow);
                     DesktopWindow selected = App.DWM.GetWindowByHandlers(selectedWindow, currentMonitor, VirtualDesktop.Current);
                     Pair<VirtualDesktop, HMONITOR> currentPair = new Pair<VirtualDesktop, HMONITOR>(VirtualDesktop.Current, currentMonitor);
                     App.DWM.RotateFocusedWindowClockwise(currentPair, selected);
@@ -57,7 +53,7 @@ namespace AmethystWindows
                 if (wParam.ToInt32() == 0x14)
                 {
                     HWND selectedWindow = User32.GetForegroundWindow();
-                    HMONITOR currentMonitor = User32.MonitorFromWindow(selectedWindow, User32.MonitorFlags.MONITOR_DEFAULTTONEAREST);
+                    HMONITOR currentMonitor = DpiAwarenessScope.GetMonitorFromWindow(selectedWindow);
                     DesktopWindow selected = App.DWM.GetWindowByHandlers(selectedWindow, currentMonitor, VirtualDesktop.Current);
                     Pair<VirtualDesktop, HMONITOR> currentPair = new Pair<VirtualDesktop, HMONITOR>(VirtualDesktop.Current, currentMonitor);
                     App.DWM.RotateFocusedWindowCounterClockwise(currentPair, selected);
@@ -65,7 +61,7 @@ namespace AmethystWindows
                 if (wParam.ToInt32() == 0x13)
                 {
                     HWND selectedWindow = User32.GetForegroundWindow();
-                    HMONITOR currentMonitor = User32.MonitorFromWindow(selectedWindow, User32.MonitorFlags.MONITOR_DEFAULTTONEAREST);
+                    HMONITOR currentMonitor = DpiAwarenessScope.GetMonitorFromWindow(selectedWindow);
                     DesktopWindow selected = App.DWM.GetWindowByHandlers(selectedWindow, currentMonitor, VirtualDesktop.Current);
                     Pair<VirtualDesktop, HMONITOR> currentPair = new Pair<VirtualDesktop, HMONITOR>(VirtualDesktop.Current, currentMonitor);
                     App.DWM.MoveWindowClockwise(currentPair, selected);
@@ -84,39 +80,33 @@ namespace AmethystWindows
                 }
                 if (wParam.ToInt32() == 0x18)
                 {
-                    HMONITOR currentMonitor = User32.MonitorFromWindow(User32.GetForegroundWindow(), User32.MonitorFlags.MONITOR_DEFAULTTONEAREST);
+                    HMONITOR currentMonitor = DpiAwarenessScope.GetMonitorFromWindow(User32.GetForegroundWindow());
                     VirtualDesktop currentDesktop = VirtualDesktop.Current;
                     Pair<VirtualDesktop, HMONITOR> currentPair = new Pair<VirtualDesktop, HMONITOR>(currentDesktop, currentMonitor);
                     App.DWM.RotateMonitorClockwise(currentPair);
                 }
                 if (wParam.ToInt32() == 0x19)
                 {
-                    HMONITOR currentMonitor = User32.MonitorFromWindow(User32.GetForegroundWindow(), User32.MonitorFlags.MONITOR_DEFAULTTONEAREST);
+                    HMONITOR currentMonitor = DpiAwarenessScope.GetMonitorFromWindow(User32.GetForegroundWindow());
                     VirtualDesktop currentDesktop = VirtualDesktop.Current;
                     Pair<VirtualDesktop, HMONITOR> currentPair = new Pair<VirtualDesktop, HMONITOR>(currentDesktop, currentMonitor);
                     App.DWM.RotateMonitorCounterClockwise(currentPair);
                 }
                 if (wParam.ToInt32() == 0x21)
                 {
-                    HMONITOR currentMonitor = User32.MonitorFromWindow(User32.GetForegroundWindow(), User32.MonitorFlags.MONITOR_DEFAULTTONEAREST);
-                    VirtualDesktop currentDesktop = VirtualDesktop.Current;
-                    Pair<VirtualDesktop, HMONITOR> currentPair = new Pair<VirtualDesktop, HMONITOR>(currentDesktop, currentMonitor);
-                    ViewModelDesktopMonitor viewModelDesktopMonitor = mainWindowViewModel.DesktopMonitors[currentPair];
-                    viewModelDesktopMonitor.RotateLayoutCounterClockwise();
-                    //string desktopLabel = string.IsNullOrEmpty(currentPair.Key.Name) ? $"Desktop {currentPair.Key.Id}" : currentPair.Key.Name;
-                    //mainWindowViewModel.Notify(desktopLabel, viewModelDesktopMonitor.Layout.ToString(), 100);
+                    ChangeLayoutAtPointer(clockwise: false);
 
                 }
                 if (wParam.ToInt32() == 0x22)
                 {
-                    HMONITOR currentMonitor = User32.MonitorFromWindow(User32.GetForegroundWindow(), User32.MonitorFlags.MONITOR_DEFAULTTONEAREST);
+                    HMONITOR currentMonitor = DpiAwarenessScope.GetMonitorFromWindow(User32.GetForegroundWindow());
                     Pair<VirtualDesktop, HMONITOR> currentPair = new Pair<VirtualDesktop, HMONITOR>(VirtualDesktop.Current, currentMonitor);
                     ViewModelDesktopMonitor viewModelDesktopMonitor = mainWindowViewModel.DesktopMonitors[currentPair];
                     viewModelDesktopMonitor.Expand();
                 }
                 if (wParam.ToInt32() == 0x23)
                 {
-                    HMONITOR currentMonitor = User32.MonitorFromWindow(User32.GetForegroundWindow(), User32.MonitorFlags.MONITOR_DEFAULTTONEAREST);
+                    HMONITOR currentMonitor = DpiAwarenessScope.GetMonitorFromWindow(User32.GetForegroundWindow());
                     Pair<VirtualDesktop, HMONITOR> currentPair = new Pair<VirtualDesktop, HMONITOR>(VirtualDesktop.Current, currentMonitor);
                     ViewModelDesktopMonitor viewModelDesktopMonitor = mainWindowViewModel.DesktopMonitors[currentPair];
                     viewModelDesktopMonitor.Shrink();
@@ -132,14 +122,6 @@ namespace AmethystWindows
                     HWND selectedWindow = User32.GetForegroundWindow();
                     DesktopWindow selected = App.DWM.FindWindow(selectedWindow);
                     App.DWM.MoveWindowNextScreen(selected);
-                }
-                if (wParam.ToInt32() == 0x21)
-                {
-                    HMONITOR currentMonitor = User32.MonitorFromWindow(User32.GetForegroundWindow(), User32.MonitorFlags.MONITOR_DEFAULTTONEAREST);
-                    VirtualDesktop currentDesktop = VirtualDesktop.Current;
-                    Pair<VirtualDesktop, HMONITOR> currentPair = new Pair<VirtualDesktop, HMONITOR>(currentDesktop, currentMonitor);
-                    ViewModelDesktopMonitor viewModelDesktopMonitor = mainWindowViewModel.DesktopMonitors[currentPair];
-                    viewModelDesktopMonitor.RotateLayoutCounterClockwise();
                 }
                 if (wParam.ToInt32() == 0x26)
                 {
@@ -164,6 +146,33 @@ namespace AmethystWindows
             }
 
             return IntPtr.Zero;
+        }
+
+        private void ShowLayoutNotification(Layout layout)
+        {
+            layoutNotificationWindow?.Close();
+            layoutNotificationWindow = new LayoutNotificationWindow(layout);
+            layoutNotificationWindow.Closed += (sender, args) =>
+            {
+                if (ReferenceEquals(sender, layoutNotificationWindow))
+                {
+                    layoutNotificationWindow = null;
+                }
+            };
+            layoutNotificationWindow.Show();
+        }
+
+        private void ChangeLayoutAtPointer(bool clockwise)
+        {
+            HMONITOR currentMonitor = DpiAwarenessScope.GetMonitorAtPhysicalCursor();
+            Pair<VirtualDesktop, HMONITOR> currentPair = new Pair<VirtualDesktop, HMONITOR>(VirtualDesktop.Current, currentMonitor);
+            ViewModelDesktopMonitor viewModelDesktopMonitor = mainWindowViewModel.GetOrCreateDesktopMonitor(currentPair);
+            Layout layout = clockwise
+                ? viewModelDesktopMonitor.RotateLayoutClockwise()
+                : viewModelDesktopMonitor.RotateLayoutCounterClockwise();
+
+            App.DWM.ReassignWindowsToLayout(currentPair, layout);
+            ShowLayoutNotification(layout);
         }
     }
 }
