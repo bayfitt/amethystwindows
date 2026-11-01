@@ -1,0 +1,163 @@
+{
+  "DesktopMonitors": [],
+  "Padding": 0,
+  "Step": 25,
+  "LayoutPadding": 0,
+  "MarginTop": 0,
+  "MarginRight": 0,
+  "MarginBottom": 0,
+  "MarginLeft": 0,
+  "VirtualDesktops": 0,
+  "Disabled": false,
+  "Filters": [],
+  "Additions": [],
+  "Hotkeys": [
+    {
+      "Hotkey": {
+        "Key": 18,
+        "Modifiers": 5
+      },
+      "Command": "rotateLayoutClockwise"
+    },
+    {
+      "Hotkey": {
+        "Key": 18,
+        "Modifiers": 13
+      },
+      "Command": "rotateLayoutCounterclockwise"
+    },
+    {
+      "Hotkey": {
+        "Key": 6,
+        "Modifiers": 5
+      },
+      "Command": "setMainPane"
+    },
+    {
+      "Hotkey": {
+        "Key": 51,
+        "Modifiers": 5
+      },
+      "Command": "swapFocusedCounterclockwise"
+    },
+    {
+      "Hotkey": {
+        "Key": 55,
+        "Modifiers": 5
+      },
+      "Command": "swapFocusedClockwise"
+    },
+    {
+      "Hotkey": {
+        "Key": 53,
+        "Modifiers": 5
+      },
+      "Command": "swapFocusCounterclockwise"
+    },
+    {
+      "Hotkey": {
+        "Key": 54,
+        "Modifiers": 5
+      },
+      "Command": "swapFocusClockwise"
+    },
+    {
+      "Hotkey": {
+        "Key": 59,
+        "Modifiers": 5
+      },
+      "Command": "moveFocusPreviousScreen"
+    },
+    {
+      "Hotkey": {
+        "Key": 57,
+        "Modifiers": 5
+      },
+      "Command": "moveFocusNextScreen"
+    },
+    {
+      "Hotkey": {
+        "Key": 55,
+        "Modifiers": 13
+      },
+      "Command": "expandMainPane"
+    },
+    {
+      "Hotkey": {
+        "Key": 51,
+        "Modifiers": 13
+      },
+      "Command": "shrinkMainPane"
+    },
+    {
+      "Hotkey": {
+        "Key": 54,
+        "Modifiers": 13
+      },
+      "Command": "moveFocusedPreviousScreen"
+    },
+    {
+      "Hotkey": {
+        "Key": 53,
+        "Modifiers": 13
+      },
+      "Command": "moveFocusedNextScreen"
+    },
+    {
+      "Hotkey": {
+        "Key": 69,
+        "Modifiers": 5
+      },
+      "Command": "redraw"
+    },
+    {
+      "Hotkey": {
+        "Key": 23,
+        "Modifiers": 13
+      },
+      "Command": "moveFocusedNextSpace"
+    },
+    {
+      "Hotkey": {
+        "Key": 25,
+        "Modifiers": 13
+      },
+      "Command": "moveFocusedPreviousSpace"
+    },
+    {
+      "Hotkey": {
+        "Key": 35,
+        "Modifiers": 13
+      },
+      "Command": "moveFocusedToSpace1"
+    },
+    {
+      "Hotkey": {
+        "Key": 36,
+        "Modifiers": 13
+      },
+      "Command": "moveFocusedToSpace2"
+    },
+    {
+      "Hotkey": {
+        "Key": 37,
+        "Modifiers": 13
+      },
+      "Command": "moveFocusedToSpace3"
+    },
+    {
+      "Hotkey": {
+        "Key": 38,
+        "Modifiers": 13
+      },
+      "Command": "moveFocusedToSpace4"
+    },
+    {
+      "Hotkey": {
+        "Key": 39,
+        "Modifiers": 13
+      },
+      "Command": "moveFocusedToSpace5"
+    }
+  ]
+}

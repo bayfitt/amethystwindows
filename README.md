@@ -30,6 +30,8 @@ Amethyst starts minimized in the Windows system tray. Double-click its tray icon
 
 To start Amethyst when you sign in, place a shortcut to `AmethystWindows.exe` in your Windows Startup folder. You can open that folder by pressing `Win+R`, entering `shell:startup`, and pressing Enter. The executable must remain at the shortcut's target location.
 
+An example of the settings used by this fork's maintainer is available in [examples/bayfitt-settings](examples/bayfitt-settings/README.md), including a portable version for other computers.
+
 ## Default Keyboard Shortcuts
 
 Amethyst Windows uses two modifiers.
