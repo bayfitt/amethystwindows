@@ -11,6 +11,12 @@ The **dynamic / automatic tiling window manager** for **windows 10/11** along th
 
 A very quick screencast of basic functions is [available](https://www.youtube.com/embed/AWN_KehMzHc).
 
+## Download and install
+
+On an ARM-based Windows 11 PC, download the `AmethystWindows-Setup-win-arm64` installer from the [latest release](https://github.com/bayfitt/amethystwindows/releases/latest). To check your PC, open **Settings → System → About** and look for an ARM-based processor under **System type**. This installer is not for Intel or AMD PCs. Exit any running copy of Amethyst from its tray menu, then run the installer. You can choose a desktop shortcut, startup at sign-in, and recommended settings for a new installation. The installer includes the .NET runtime and does not replace existing Amethyst settings.
+
+The installer is not signed with a publicly trusted Windows code-signing certificate. Windows may display an unknown-publisher warning, and Smart App Control may block it. Download it only from the release page you trust; detached SSH signatures and checksums are available alongside the download. To uninstall, use Windows **Settings → Apps → Installed apps**. Your Amethyst settings are retained.
+
 ## Features
 
 - integrated with **windows 10/11 virtual desktops**

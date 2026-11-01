@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Windows;
 using System.Windows.Interop;
+using System.Windows.Threading;
 using WindowsDesktop;
 
 namespace AmethystWindows
@@ -14,10 +15,51 @@ namespace AmethystWindows
         internal static DesktopWindowsManager.DesktopWindowsManager DWM = null;
         internal static DesktopWindowsManager.Hooks hooks = null;
         private static bool firstActivation = true;
+        private SingleInstance? singleInstance;
+        private bool activationPending;
 
         public App()
         {
             InitializeComponent();
+        }
+
+        protected override void OnStartup(StartupEventArgs e)
+        {
+            singleInstance = new SingleInstance("AmethystWindows");
+            if (!singleInstance.IsPrimary)
+            {
+                if (!e.Args.Contains("--background", StringComparer.OrdinalIgnoreCase))
+                    singleInstance.RequestActivation();
+                Shutdown();
+                return;
+            }
+
+            singleInstance.Listen(() =>
+            {
+                if (!Dispatcher.HasShutdownStarted)
+                    Dispatcher.BeginInvoke(DispatcherPriority.ApplicationIdle, new Action(OpenSettings));
+            });
+            base.OnStartup(e);
+        }
+
+        protected override void OnExit(ExitEventArgs e)
+        {
+            singleInstance?.Dispose();
+            base.OnExit(e);
+        }
+
+        private void OpenSettings()
+        {
+            if (MainWindow == null || !MainWindow.IsLoaded)
+            {
+                activationPending = true;
+                return;
+            }
+
+            activationPending = false;
+            if (MainWindow.DataContext is MainWindowViewModel viewModel)
+                viewModel.NotifyIconOpenCommand.Execute(null);
+            MainWindow.Activate();
         }
 
         private void App_Activated(object sender, EventArgs e)
@@ -42,6 +84,9 @@ namespace AmethystWindows
 
                 firstActivation = false;
             }
+
+            if (activationPending)
+                Dispatcher.BeginInvoke(DispatcherPriority.ApplicationIdle, new Action(OpenSettings));
         }
 
         public static void InitVirtualDesktops()

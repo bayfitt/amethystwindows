@@ -45,7 +45,15 @@ The app uses `Slions.VirtualDesktop` 6.9.2. The upstream `VirtualDesktop` 5.0.5 
 
 ## Installer project
 
-The solution also contains a legacy Visual Studio Installer `.vdproj`. The command-line steps above build and test the app project directly; they do not build an MSI. MSI creation requires Visual Studio with the Installer Projects extension, and an ARM64 MSI was not verified as part of this build.
+The current ARM64 installer is built with Inno Setup 7.1.1 and includes the .NET runtime. From the repository root, pass the path to the Inno Setup command-line compiler:
+
+```powershell
+.\installer\Build-Installer.ps1 -InnoCompiler 'C:\path\to\Inno Setup 7\ISCC.exe'
+```
+
+The script publishes a self-contained ARM64 app and writes the installer under `artifacts\installer`. The installer is restricted to Windows 11 ARM64. It installs per user, offers optional startup and desktop shortcuts, preserves existing settings, and leaves settings in place on uninstall. Windows publisher verification requires a separately obtained trusted code-signing certificate; an SSH release signature is not an Authenticode signature.
+
+The solution also contains a legacy Visual Studio Installer `.vdproj`; it is not used by this installer and an ARM64 MSI has not been verified.
 
 ## Signing
 
