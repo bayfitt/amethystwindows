@@ -12,4 +12,4 @@ To try either file:
 3. Copy the example you want to `%LOCALAPPDATA%\AmethystWindows\MySettings.json`. If using the portable file, rename the copy to `MySettings.json`.
 4. Start Amethyst again.
 
-These are examples, not settings that the application installs or updates automatically.
+The installer offers the portable example as recommended settings for a new installation. It only copies the file when no settings file exists; it does not replace or update existing settings. You can also use either example manually as described above.
