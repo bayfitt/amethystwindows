@@ -12,11 +12,53 @@ namespace AmethystWindows
     {
         private MainWindowViewModel mainWindowViewModel;
         private LayoutNotificationWindow? layoutNotificationWindow;
+        private bool minimizingToTray;
 
         public MainWindow()
         {
             InitializeComponent();
             mainWindowViewModel = DataContext as MainWindowViewModel;
+            StateChanged += MainWindow_StateChanged;
+        }
+
+        public void MinimizeToTray()
+        {
+            if (minimizingToTray)
+            {
+                return;
+            }
+
+            minimizingToTray = true;
+            try
+            {
+                mainWindowViewModel.ShowInTaskbar = false;
+                mainWindowViewModel.WindowState = WindowState.Minimized;
+                Hide();
+            }
+            finally
+            {
+                minimizingToTray = false;
+            }
+        }
+
+        public void RestoreFromTray()
+        {
+            mainWindowViewModel.WindowState = WindowState.Normal;
+            mainWindowViewModel.ShowInTaskbar = true;
+            if (!IsVisible)
+            {
+                Show();
+            }
+
+            Activate();
+        }
+
+        private void MainWindow_StateChanged(object? sender, EventArgs e)
+        {
+            if (WindowState == WindowState.Minimized)
+            {
+                MinimizeToTray();
+            }
         }
 
         protected override void OnSourceInitialized(EventArgs e)

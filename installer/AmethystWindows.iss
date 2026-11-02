@@ -20,7 +20,7 @@
 [Setup]
 AppId={#InstallerAppId}
 AppName={#AppDisplayName}
-AppVersion=2026.11.01.1
+AppVersion=2026.11.02.1
 AppPublisher=bayfitt
 AppPublisherURL=https://github.com/bayfitt/amethystwindows
 AppSupportURL=https://github.com/bayfitt/amethystwindows/issues
@@ -36,7 +36,7 @@ PrivilegesRequired=lowest
 ArchitecturesAllowed=arm64
 ArchitecturesInstallIn64BitMode=arm64
 MinVersion=10.0.22000
-OutputBaseFilename=AmethystWindows-Setup-win-arm64-2026.11.01.1
+OutputBaseFilename=AmethystWindows-Setup-win-arm64-2026.11.02.1
 Compression={#SetupCompression}
 SolidCompression={#SetupSolidCompression}
 WizardStyle=modern

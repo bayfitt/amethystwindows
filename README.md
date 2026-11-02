@@ -29,7 +29,7 @@ The installer is not signed with a publicly trusted Windows code-signing certifi
 
 ## Start with Windows and use the system tray
 
-Amethyst starts minimized in the Windows system tray. Double-click its tray icon to open the settings window, or right-click it to open the window, disable tiling, or exit. Closing the settings window leaves Amethyst running in the tray. If the icon is hidden, open the taskbar's hidden-icons menu, or enable it under **Settings → Personalization → Taskbar → Other system tray icons**.
+Amethyst starts hidden in the Windows system tray and does not appear in Alt+Tab while hidden. Double-click its tray icon to open the settings window, or right-click it to open the window, disable tiling, or exit. Minimizing or closing the settings window hides it from Alt+Tab and leaves Amethyst running in the tray. If the icon is hidden, open the taskbar's hidden-icons menu, or enable it under **Settings → Personalization → Taskbar → Other system tray icons**.
 
 To start Amethyst when you sign in, place a shortcut to `AmethystWindows.exe` in your Windows Startup folder. You can open that folder by pressing `Win+R`, entering `shell:startup`, and pressing Enter. The executable must remain at the shortcut's target location.
 

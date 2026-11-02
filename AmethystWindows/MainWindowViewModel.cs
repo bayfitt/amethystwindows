@@ -190,7 +190,13 @@ namespace AmethystWindows
 
             LoadedCommand = new RelayCommand(Loaded);
             ClosingCommand = new RelayCommand<CancelEventArgs>(Closing);
-            NotifyIconOpenCommand = new RelayCommand(() => { WindowState = WindowState.Normal; });
+            NotifyIconOpenCommand = new RelayCommand(() =>
+            {
+                if (App.Current?.MainWindow is MainWindow mainWindow)
+                {
+                    mainWindow.RestoreFromTray();
+                }
+            });
             NotifyIconExitCommand = new RelayCommand(() => { Application.Current.Shutdown(); });
             // Activated can be delivered during a synchronous Windows input call.
             // Defer the virtual-desktop COM lookup until that call has returned.
@@ -236,7 +242,6 @@ namespace AmethystWindows
             get => _windowState;
             set
             {
-                ShowInTaskbar = true;
                 SetProperty(ref _windowState, value);
                 ShowInTaskbar = value != WindowState.Minimized;
             }
@@ -457,7 +462,14 @@ namespace AmethystWindows
 
         private void Loaded()
         {
-            WindowState = WindowState.Minimized;
+            if (App.Current?.MainWindow is MainWindow mainWindow)
+            {
+                mainWindow.MinimizeToTray();
+            }
+            else
+            {
+                WindowState = WindowState.Minimized;
+            }
         }
 
         private void Closing(CancelEventArgs? e)
@@ -467,7 +479,14 @@ namespace AmethystWindows
             if (e == null)
                 return;
             e.Cancel = true;
-            WindowState = WindowState.Minimized;
+            if (App.Current?.MainWindow is MainWindow mainWindow)
+            {
+                mainWindow.MinimizeToTray();
+            }
+            else
+            {
+                WindowState = WindowState.Minimized;
+            }
         }
     }
 

@@ -24,4 +24,4 @@ if ($LASTEXITCODE -ne 0) { throw "ARM64 publish failed with exit code $LASTEXITC
 & $InnoCompiler "/DPayloadDir=$payload" "/O$OutputDirectory" (Join-Path $PSScriptRoot 'AmethystWindows.iss')
 if ($LASTEXITCODE -ne 0) { throw "Installer build failed with exit code $LASTEXITCODE." }
 
-Write-Output (Join-Path $OutputDirectory 'AmethystWindows-Setup-win-arm64-2026.11.01.1.exe')
+Write-Output (Join-Path $OutputDirectory 'AmethystWindows-Setup-win-arm64-2026.11.02.1.exe')
